@@ -2,7 +2,7 @@ import tkinter as tk
 from tkinter import filedialog, ttk
 from PIL import ImageTk, Image
 import numpy as np
-
+import math
 
 class Application(tk.Frame):
     def __init__(self, master=None):
@@ -58,8 +58,38 @@ class Application(tk.Frame):
         self.submitButton.grid(column=0, row=25, padx=10, pady=10)
 
     def submitButtonAction(self):
-        print(self.chosenAlgorithm.get())
-        self.convert_to_array()
+        if(self.chosenAlgorithm == "None"):
+            print("No algorithm chosen")
+        elif(self.chosenAlgorithm == "L"):
+            oldimgarray = self.convert_to_array()
+
+            originalheight = int(oldimgarray.shape[0])
+            originalwidth = int(oldimgarray.shape[1])
+            newheight = int(self.height.get("1.0", tk.END))
+            newwidth = int(self.width.get("1.0", tk.END))
+
+            newimgarray = np.ndarray(shape=(newheight,
+                                            newwidth), dtype=np.int)
+
+            for i in range(newheight):
+                for j in range(newwidth):
+                    srcX = int(float(i) / float(newwidth) * float(originalwidth))
+                    srcY = int(round(float(j) / float(newheight) * float(originalheight)))
+                    srcX = min(srcX, originalwidth - 1)
+                    srcY = min(srcY, originalheight - 1)
+                    srcPixel = oldimgarray[srcX, srcY]
+                    newimgarray[i, j] = srcPixel
+
+            if(self.bit.get("1.0", tk.END) == ""):
+                print("bits are changing")
+            else:
+                newBit = self.bit.get("1.0", tk.END)
+                new = pow(2, int(newBit))
+                for i in range(newheight):
+                    for j in range(newwidth):
+                        newimgarray[i, j] = newimgarray[i, j]*(new/256)
+            newimg = Image.fromarray(newimgarray)
+            newimg.show()
 
     def create_uploadbutton(self):
         self.labelFrame = ttk.LabelFrame(self, text="Open A File")
@@ -69,7 +99,7 @@ class Application(tk.Frame):
 
     def uploadButtonAction(self):
         self.filename = filedialog.askopenfilename(initialdir="/", title="Select A File",
-                                                   filetype=(("jpeg", "*.jpg"), ("All Files", "*.*")))
+                                                   filetype=(("PGM", "*.pgm"), ("All Files", "*.*")))
         self.label = ttk.Label(self.labelFrame, text="")
         self.label.grid(column=1, row=2)
         self.label.configure(text=self.filename)
@@ -89,8 +119,9 @@ class Application(tk.Frame):
     def convert_to_array(self):
         img = Image.open(self.filename)
         newimgarray = np.array(img)
-        newimg = Image.fromarray(newimgarray)
-        newimg.show()
+        #newimg = Image.fromarray(newimgarray)
+        #newimg.show()
+        return newimgarray
 
     def convert_to_image(self):
         img = Image.fromarray(self.originalImageArray)
