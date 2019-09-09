@@ -15,7 +15,7 @@ class Application(tk.Frame):
         tkvar = tk.StringVar(self)
 
         # Dictionary with options
-        choices = {"None", "NN", "L", "Bi-linear", "Bi-cubic"}
+        choices = {"None", "NN", "L", "Bi-linear", "Bi-cubic", "Linear-X", "Linear-Y"}
         tkvar.set("None")  # set the default option
 
 
@@ -59,12 +59,32 @@ class Application(tk.Frame):
 
     def submitButtonAction(self):
         chosenAlgorithmStr = self.chosenAlgorithm
+        newimgarray = self.convert_to_array()
         if(chosenAlgorithmStr == "None"):
             print("No algorithm chosen")
         elif(chosenAlgorithmStr == "NN"):
-            self.nearest_neighbor(),
+            newimgarray = np.asarray(self.nearest_neighbor())
         elif(chosenAlgorithmStr == "Bi-linear"):
-            self.bilinear()
+            newimgarray = np.asarray(self.bilinear())
+        elif (chosenAlgorithmStr == "Linear-X"):
+            newimgarray = np.asarray(self.linear_x())
+        elif (chosenAlgorithmStr == "Linear-Y"):
+            newimgarray = np.asarray(self.linear_y())
+
+        if (self.bit.get("1.0", tk.END) == "\n"):
+            print("bits are not changing")
+        else:
+            newheight = int(newimgarray.shape[0])
+            newwidth = int(newimgarray.shape[1])
+            newBit = self.bit.get("1.0", tk.END)
+            new = pow(2, int(newBit))
+            ConversionFactor = 255 / (new - 1)
+            for i in range(newheight):
+                for j in range(newwidth):
+                    newimgarray[i, j] = int(newimgarray[i, j]/ConversionFactor + 0.5)*ConversionFactor
+
+        newimg = Image.fromarray(np.asarray(newimgarray))
+        newimg.show()
 
     def nearest_neighbor(self):
         oldimgarray = self.convert_to_array()
@@ -84,17 +104,60 @@ class Application(tk.Frame):
                 y = int(i*yr)
                 newimgarray[i][j] = oldimgarray[y][x]
         """
-        if (self.bit.get("1.0", tk.END) == "\n"):
-            print("bits are changing")
-        else:
-            newBit = self.bit.get("1.0", tk.END)
-            new = pow(2, int(newBit))
-            for i in range(newheight):
-                for j in range(newwidth):
-                    newimgarray[i, j] = newimgarray[i, j] * (new / 256)
         """
-        newimg = Image.fromarray(np.asarray(newimgarray))
-        newimg.show()
+        #newimg = Image.fromarray(np.asarray(newimgarray))
+        #newimg.show()
+        return newimgarray
+
+    def linear_x(self):
+        oldimgarray = self.convert_to_array()
+
+        originalheight = int(oldimgarray.shape[0])
+        originalwidth = int(oldimgarray.shape[1])
+        newheight = int(self.height.get("1.0", tk.END))
+        newwidth = int(self.width.get("1.0", tk.END))
+
+        newimgarray = np.ndarray(shape=(newheight,
+                                        newwidth), dtype=np.int)
+        xr = (originalwidth - 1) * 1.0 / newwidth
+        yr = (originalheight) * 1.0 / newheight
+        for i in range(newheight):
+            for j in range(newwidth):
+                x = int(j * xr)
+                y = int(i * yr)
+                diffX = (j * xr) - x
+                a = oldimgarray[y][x];
+                b = oldimgarray[y][x + 1];
+                #newimgarray[i][j] = ((b-a)*i)+(a-i*(b-a))
+                newimgarray[i][j] = int(a * (1 - diffX) + b * diffX)
+        # newimg = Image.fromarray(np.asarray(newimgarray))
+        # newimg.show()
+        return newimgarray
+
+    def linear_y(self):
+        oldimgarray = self.convert_to_array()
+
+        originalheight = int(oldimgarray.shape[0])
+        originalwidth = int(oldimgarray.shape[1])
+        newheight = int(self.height.get("1.0", tk.END))
+        newwidth = int(self.width.get("1.0", tk.END))
+
+        newimgarray = np.ndarray(shape=(newheight,
+                                        newwidth), dtype=np.int)
+        xr = (originalwidth) * 1.0 / newwidth
+        yr = (originalheight-1) * 1.0 / newheight
+        for i in range(newheight):
+            for j in range(newwidth):
+                x = int(j * xr)
+                y = int(i * yr)
+                diffY = (j * yr) - y
+                a = oldimgarray[y][x];
+                b = oldimgarray[y+1][x];
+                # newimgarray[i][j] = ((b-a)*i)+(a-i*(b-a))
+                newimgarray[i][j] = int(a * (1 - diffY) + b * diffY)
+        # newimg = Image.fromarray(np.asarray(newimgarray))
+        # newimg.show()
+        return newimgarray
 
     def bilinear(self):
         oldimgarray = self.convert_to_array()
@@ -119,8 +182,9 @@ class Application(tk.Frame):
                 c = oldimgarray[y + 1][x];
                 d = oldimgarray[y + 1][x + 1];
                 newimgarray[i][j] = int(a*(1-diffX)*(1-diffY)+b*diffX*(1-diffY)+c*(1-diffX)*diffY+d*diffX*diffY)
-        newimg = Image.fromarray(np.asarray(newimgarray))
-        newimg.show()
+        #newimg = Image.fromarray(np.asarray(newimgarray))
+        #newimg.show()
+        return newimgarray
 
     def create_uploadbutton(self):
         self.labelFrame = ttk.LabelFrame(self, text="Open A File")
