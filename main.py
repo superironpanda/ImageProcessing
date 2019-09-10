@@ -60,15 +60,20 @@ class Application(tk.Frame):
     def submitButtonAction(self):
         chosenAlgorithmStr = self.chosenAlgorithm
         newimgarray = self.convert_to_array()
+        method = ""
         if(chosenAlgorithmStr == "None"):
             print("No algorithm chosen")
         elif(chosenAlgorithmStr == "NN"):
+            method = "Nearest Neighbor"
             newimgarray = np.asarray(self.nearest_neighbor())
         elif(chosenAlgorithmStr == "Bi-linear"):
+            method = "Bi-linear"
             newimgarray = np.asarray(self.bilinear())
         elif (chosenAlgorithmStr == "Linear-X"):
+            method = "Linear-X"
             newimgarray = np.asarray(self.linear_x())
         elif (chosenAlgorithmStr == "Linear-Y"):
+            method = "Linear-Y"
             newimgarray = np.asarray(self.linear_y())
 
         if (self.bit.get("1.0", tk.END) == "\n"):
@@ -82,9 +87,29 @@ class Application(tk.Frame):
             for i in range(newheight):
                 for j in range(newwidth):
                     newimgarray[i, j] = int(newimgarray[i, j]/ConversionFactor + 0.5)*ConversionFactor
+            method = method + self.bit.get("1.0", tk.END) + " Image"
+        #newimg = Image.fromarray(np.asarray(newimgarray))
+        #newimg.show()
+        if(method == "None"):
+            method = self.bit.get("1.0", tk.END)+" Image"
+        self.show_new_image(newimgarray, method)
 
-        newimg = Image.fromarray(np.asarray(newimgarray))
-        newimg.show()
+    def show_new_image(self, args, method):
+        newimgarray = Image.fromarray(np.asarray(args))
+        img = ImageTk.PhotoImage(Image.fromarray(np.asarray(newimgarray)))
+        newWindow = tk.Toplevel(root)
+
+        newWindow.title(method)
+        newWindow.geometry("512x512")
+        newWindow.configure(background='grey')
+
+        newWindow.canvas = tk.Canvas(newWindow, width=800, height=800)
+
+        newWindow.img = ImageTk.PhotoImage(Image.open(self.filename))
+        newWindow.canvas.create_image(10, 10, anchor=tk.NW, image=img)
+        newWindow.canvas.image = img
+        newWindow.canvas.pack()
+        newWindow.mainloop()
 
     def nearest_neighbor(self):
         oldimgarray = self.convert_to_array()
@@ -150,7 +175,7 @@ class Application(tk.Frame):
             for j in range(newwidth):
                 x = int(j * xr)
                 y = int(i * yr)
-                diffY = (j * yr) - y
+                diffY = (i * yr) - y
                 a = oldimgarray[y][x];
                 b = oldimgarray[y+1][x];
                 # newimgarray[i][j] = ((b-a)*i)+(a-i*(b-a))
@@ -208,8 +233,23 @@ class Application(tk.Frame):
         self.canvas.create_image(10, 10, anchor=tk.NW, image=self.img)
         self.canvas.image = self.img
         """
-        img = Image.open(self.filename)
-        img.show()
+        #img = Image.open(self.filename)
+
+        #img.show()
+        img = ImageTk.PhotoImage(Image.open(self.filename))
+        newWindow = tk.Toplevel(root)
+
+        newWindow.title("Original Image")
+        newWindow.geometry("512x512")
+        newWindow.configure(background='grey')
+
+        newWindow.canvas = tk.Canvas(newWindow, width=800, height=800)
+
+        newWindow.img = ImageTk.PhotoImage(Image.open(self.filename))
+        newWindow.canvas.create_image(10, 10, anchor=tk.NW, image=img)
+        newWindow.canvas.image = img
+        newWindow.canvas.pack()
+        newWindow.mainloop()
 
     def convert_to_array(self):
         img = Image.open(self.filename)
