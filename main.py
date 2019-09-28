@@ -2,7 +2,7 @@ import tkinter as tk
 from tkinter import filedialog, ttk
 from PIL import ImageTk, Image
 import numpy as np
-import math
+
 
 class Application(tk.Frame):
     def __init__(self, master=None):
@@ -15,14 +15,17 @@ class Application(tk.Frame):
         tkvar = tk.StringVar(self)
 
         # Dictionary with options
-        choices = {"None", "NN", "L", "Bi-linear", "Bi-cubic", "Linear-X", "Linear-Y"}
+        choices = {"None", "NN", "Bi-linear", "Bi-cubic", "Linear-X", "Linear-Y",
+                   "Histogram Equalization(Local)", "Histogram Equalization(Global)",
+                   "Smoothing Filter", "Median Filter",
+                   "Sharpening Laplacian Filter", "High-boosting Filter", "Bit Plane"}
         tkvar.set("None")  # set the default option
 
 
         dropdownlisFrame = tk.LabelFrame(self)
         dropdownlisFrame.grid(column=0, row=2, padx=10, pady=10)
         popupMenu = tk.OptionMenu(dropdownlisFrame, tkvar, *choices)
-        popupMenu.pack(side= tk.TOP)
+        popupMenu.pack(side=tk.TOP)
         labeltest = tk.Label(dropdownlisFrame, text="Default is None")
         self.chosenAlgorithm = tkvar
         labeltest.pack(side=tk.BOTTOM)
@@ -31,19 +34,121 @@ class Application(tk.Frame):
         def change_dropdown(*args):
             labeltest.configure(text="The selected item is {}".format(tkvar.get()))
             self.chosenAlgorithm = format(tkvar.get())
+            createFilterSizeChecker = 0
+            createBitPlaneBitsChecker = 0
+            try:
+                if self.labelFilterWidth.winfo_exists():
+                    createFilterSizeChecker = 1
+            except:
+                createFilterSizeChecker = 0
+
+            try:
+                if self.labelBitPlaneBits.winfo_exists():
+                    createBitPlaneBitsChecker = 1
+            except:
+                createBitPlaneBitsChecker = 0
+
+            if self.checkIfFilterNeededForAlgorithm() and createFilterSizeChecker == 0:
+                self.createFilterTxtBox(dropdownlisFrame)
+            else:
+                self.destroyFilterAndBit(createFilterSizeChecker, createBitPlaneBitsChecker)
+
+            if self.checkIfBitPlaneSelected() and createBitPlaneBitsChecker == 0:
+                self.createBitPlaneCheckBoxes(dropdownlisFrame)
+            else:
+                self.destroyFilterAndBit(createFilterSizeChecker, createBitPlaneBitsChecker)
 
         # link function to change dropdown
         tkvar.trace('w', change_dropdown)
         self.create_text_box()
         self.create_submit_button()
 
+    def createBitPlaneCheckBoxes(self, dropdownlisFrame):
+        self.labelBitPlaneBits = tk.Label(dropdownlisFrame, text="Bit Plane Bits")
+        self.labelBitPlaneBits.pack()
+        self.BitPlaneBitsCheckBox0 = tk.Checkbutton(dropdownlisFrame, text="Bit Plane 0")
+        self.BitPlaneBitsCheckBox1 = tk.Checkbutton(dropdownlisFrame, text="Bit Plane 1")
+        self.BitPlaneBitsCheckBox2 = tk.Checkbutton(dropdownlisFrame, text="Bit Plane 2")
+        self.BitPlaneBitsCheckBox3 = tk.Checkbutton(dropdownlisFrame, text="Bit Plane 3")
+        self.BitPlaneBitsCheckBox4 = tk.Checkbutton(dropdownlisFrame, text="Bit Plane 4")
+        self.BitPlaneBitsCheckBox5 = tk.Checkbutton(dropdownlisFrame, text="Bit Plane 5")
+        self.BitPlaneBitsCheckBox6 = tk.Checkbutton(dropdownlisFrame, text="Bit Plane 6")
+        self.BitPlaneBitsCheckBox7 = tk.Checkbutton(dropdownlisFrame, text="Bit Plane 7")
+
+        self.BitPlaneBitsCheckBox0.pack()
+        self.BitPlaneBitsCheckBox1.pack()
+        self.BitPlaneBitsCheckBox2.pack()
+        self.BitPlaneBitsCheckBox3.pack()
+        self.BitPlaneBitsCheckBox4.pack()
+        self.BitPlaneBitsCheckBox5.pack()
+        self.BitPlaneBitsCheckBox6.pack()
+        self.BitPlaneBitsCheckBox7.pack()
+
+    def destroyFilterAndBit(self, createFilterSizeChecker, createBitPlaneBitsChecker):
+        if createFilterSizeChecker == 1:
+            checker = self.checkIfFilterNeededForAlgorithm()
+            if checker is not True:
+                self.destroyFilterSizeLabelAndTextBox()
+
+        if createBitPlaneBitsChecker == 1:
+            checker = self.checkIfBitPlaneSelected()
+            if checker is not True:
+                self.destroyBitPlaneBitsCheckBoxes()
+
+    def createFilterTxtBox(self, dropdownlisFrame):
+        self.labelFilterWidth = tk.Label(dropdownlisFrame, text="Filter Width")
+        self.labelFilterWidth.pack()
+        self.filterWidth = tk.Text(dropdownlisFrame, height=1, width=15)
+        self.filterWidth.insert("1.0", "3")
+        self.filterWidth.pack()
+
+        self.labelFilterHeight = tk.Label(dropdownlisFrame, text="Filter Height")
+        self.labelFilterHeight.pack()
+        self.filterHeight = tk.Text(dropdownlisFrame, height=1, width=15)
+        self.filterHeight.insert("1.0", "3")
+        self.filterHeight.pack()
+
+    def destroyBitPlaneBitsCheckBoxes(self):
+        self.labelBitPlaneBits.destroy()
+        self.BitPlaneBitsCheckBox0.destroy()
+        self.BitPlaneBitsCheckBox1.destroy()
+        self.BitPlaneBitsCheckBox2.destroy()
+        self.BitPlaneBitsCheckBox3.destroy()
+        self.BitPlaneBitsCheckBox4.destroy()
+        self.BitPlaneBitsCheckBox5.destroy()
+        self.BitPlaneBitsCheckBox6.destroy()
+        self.BitPlaneBitsCheckBox7.destroy()
+
+    def checkIfFilterNeededForAlgorithm(self):
+        checkerString = self.chosenAlgorithm
+        if (checkerString == "Histogram Equalization(Local)" or checkerString == "Smoothing Filter" or
+            checkerString == "Median Filter" or checkerString == "Sharpening Laplacian Filter" or
+            checkerString == "High-boosting Filter"):
+            return True
+        else:
+            return False
+
+    def checkIfBitPlaneSelected(self):
+        checkString = self.chosenAlgorithm
+        if checkString == "Bit Plane":
+            return True
+        else:
+            return False
+
+    def destroyFilterSizeLabelAndTextBox(self):
+        self.labelFilterWidth.destroy()
+        self.filterWidth.destroy()
+        self.labelFilterHeight.destroy()
+        self.filterHeight.destroy()
+
+
     def create_text_box(self):
-        labelWidth = tk.Label(self, text="Width")
+        labelWidth = tk.Label(self, text="Width \n(Empty would be original size)")
         labelWidth.grid(column=0, row=9)
         self.width = tk.Text(self, height=1, width=15)
         self.width.grid(column=0, row=10)
 
-        labelHeight = tk.Label(self, text="Width")
+        labelHeight = tk.Label(self, text="Height \n(Empty would be original size)")
         labelHeight.grid(column=0, row=14)
         self.height = tk.Text(self, height=1, width=15)
         self.height.grid(column=0, row=15)
@@ -61,22 +166,43 @@ class Application(tk.Frame):
         chosenAlgorithmStr = self.chosenAlgorithm
         newimgarray = self.convert_to_array()
         method = ""
-        if(chosenAlgorithmStr == "None"):
+        if chosenAlgorithmStr == "None":
             print("No algorithm chosen")
-        elif(chosenAlgorithmStr == "NN"):
+        elif chosenAlgorithmStr == "NN":
             method = "Nearest Neighbor"
             newimgarray = np.asarray(self.nearest_neighbor())
-        elif(chosenAlgorithmStr == "Bi-linear"):
+        elif chosenAlgorithmStr == "Bi-linear":
             method = "Bi-linear"
             newimgarray = np.asarray(self.bilinear())
-        elif (chosenAlgorithmStr == "Linear-X"):
+        elif chosenAlgorithmStr == "Linear-X":
             method = "Linear-X"
             newimgarray = np.asarray(self.linear_x())
-        elif (chosenAlgorithmStr == "Linear-Y"):
+        elif chosenAlgorithmStr == "Linear-Y":
             method = "Linear-Y"
             newimgarray = np.asarray(self.linear_y())
+        elif chosenAlgorithmStr == "Histogram Equalization(Global)":
+            method = "Histogram Equalization(Global)"
+            newimgarray = np.asarray(self.HistogramEqualizationGlobal)
+        elif chosenAlgorithmStr == "Histogram Equalization(Local)":
+            method = "Histogram Equalization(Local)"
+            newimgarray = np.asarray(self.HistogramEqualizationLocal)
+        elif chosenAlgorithmStr == "Smoothing Filter":
+            method = "Smoothing Filter"
+            newimgarray = np.asarray(self.SmoothingFilter)
+        elif chosenAlgorithmStr == "Median Filter":
+            method = "Median Filter"
+            newimgarray = np.asarray(self.MedianFilter)
+        elif chosenAlgorithmStr == "Sharpening Laplacian Filter":
+            method = "Sharpening Laplacian Filter"
+            newimgarray = np.asarray(self.SharpeningLaplacianFilter)
+        elif chosenAlgorithmStr == "High-boosting Filter":
+            method = "High-boosting Filter"
+            newimgarray = np.asarray(self.HighBoostingFilter)
+        elif chosenAlgorithmStr == "Bit Plane":
+            method = "Bit Plane"
+            newimgarray = np.asarray(self.BitPlane)
 
-        if (self.bit.get("1.0", tk.END) == "\n"):
+        if self.bit.get("1.0", tk.END) == "\n":
             print("bits are not changing")
         else:
             newheight = int(newimgarray.shape[0])
@@ -95,7 +221,7 @@ class Application(tk.Frame):
         self.show_new_image(newimgarray, method)
 
     def show_new_image(self, args, method):
-        newimgarray = Image.fromarray(np.asarray(args))
+        newimgarray = Image.fromarray(np.asarray(args, np.uint8))
         img = ImageTk.PhotoImage(Image.fromarray(np.asarray(newimgarray)))
         newWindow = tk.Toplevel(root)
 
@@ -211,6 +337,27 @@ class Application(tk.Frame):
         #newimg.show()
         return newimgarray
 
+    def HistogramEqualizationGlobal(self):
+        return 1
+
+    def HistogramEqualizationLocal(self):
+        return 1
+
+    def SmoothingFilter(self):
+        return 1
+
+    def MedianFilter(self):
+        return 1
+
+    def SharpeningLaplacianFilter(self):
+        return 1
+
+    def HighBoostingFilter(self):
+        return 1
+
+    def BitPlane(self):
+        return 1
+
     def create_uploadbutton(self):
         self.labelFrame = ttk.LabelFrame(self, text="Open A File")
         self.labelFrame.grid(column=0, row=0, padx=10, pady=10)
@@ -218,24 +365,13 @@ class Application(tk.Frame):
         self.uploadButton.grid(column=0, row=1)
 
     def uploadButtonAction(self):
-        self.filename = filedialog.askopenfilename(initialdir="/", title="Select A File",
-                                                   filetype=(("PGM", "*.pgm"), ("All Files", "*.*")))
+        self.filename = filedialog.askopenfilename()
         self.label = ttk.Label(self.labelFrame, text="")
         self.label.grid(column=1, row=2)
         self.label.configure(text=self.filename)
         self.show_original_image()
 
     def show_original_image(self):
-        """
-        self.canvas = tk.Canvas(root, width=300, height=300)
-        self.canvas.pack()
-        self.img = ImageTk.PhotoImage(Image.open(self.filename))
-        self.canvas.create_image(10, 10, anchor=tk.NW, image=self.img)
-        self.canvas.image = self.img
-        """
-        #img = Image.open(self.filename)
-
-        #img.show()
         img = ImageTk.PhotoImage(Image.open(self.filename))
         newWindow = tk.Toplevel(root)
 
@@ -254,8 +390,6 @@ class Application(tk.Frame):
     def convert_to_array(self):
         img = Image.open(self.filename)
         newimgarray = np.array(img)
-        #newimg = Image.fromarray(newimgarray)
-        #newimg.show()
         return newimgarray
 
 
