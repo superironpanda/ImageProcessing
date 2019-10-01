@@ -362,6 +362,7 @@ class Application(tk.Frame):
         cs = cs.astype('uint8')
         img_new = cs[oldimgarray1D]
         img_new = np.reshape(img_new, oldimgarray.shape)
+
         return img_new
 
     def get_histogram(self, image, bins):
@@ -388,45 +389,38 @@ class Application(tk.Frame):
         sizey = int(oldimgarray.shape[1])
         filtersize = int(self.filterHeight.get("1.0", tk.END))
         filtersizeTmp = int(filtersize/2)
-        img = self.addpadding(oldimgarray,1)
-        Matrix = [[0 for x in range(sizex+2)] for y in range(sizey+2)]
+        paddedimg = self.addpadding(oldimgarray, filtersize)
+        newimg = paddedimg
+        edge = int(math.floor(filtersize/2))
 
-        Matrix = [[0 for x in range(sizex + 2)] for y in range(sizey + 2)]
+        for i in range(edge, sizex-edge):
+            for j in range(edge, sizey-edge):
+                kernel = self.HELocalFillKernel(i, j, filtersize, paddedimg)
+                EqualizedKernel = self.HistogramEqualizationGlobal(kernel)
+                newimg = self.HELocalFillImagewithEqualizedKernel(newimg, EqualizedKernel, i, j, filtersize)
 
-        for i in range(sizex):
-            for y in range(sizey):
-                temp1 = np.array([img[i, y], img[i + 1, y], img[i + 2, y]])
-                local = np.vstack([temp1])
-                temp2 = np.array([img[i, y + 1], img[i + 1, y + 1], img[i + 2, y + 1]])
-                local = np.vstack([local, temp2])
-                temp3 = np.array([img[i, y + 2], img[i + 1, y + 2], img[i + 2, y + 2]])
-                local = np.vstack([local, temp3])
-                Matrix[i + 1][y + 1] = self.part(local)
+        return newimg
 
-        MatrixFinish = [[0 for x in range(sizex)] for y in
-                        range(sizey)]  # again convert orjinal  size"example 512 x 512 image"
-        for k in range(sizex):
-            for t in range(sizey):
-                MatrixFinish[t][k] = Matrix[t + 1][k + 1]
+    def HELocalFillKernel(self, i, j, kernelsize, paddedimage):
+        kernel = np.zeros((kernelsize, kernelsize), dtype=int)
+        from_x = i - int(math.floor(kernelsize / 2))
+        to_x = i + int(math.floor(kernelsize / 2))
+        from_y = j - int(math.floor(kernelsize / 2))
+        to_y = j + int(math.floor(kernelsize / 2))
 
-        # finish part
-        Image = np.asarray(MatrixFinish)
-        return Image
+        for m in range(from_x, to_x + 1):
+            for n in range(from_y, to_y + 1):
+                kernel[m - from_x, n - from_y] = paddedimage[m, n]
+        return kernel
 
-    def part(self, local):  # local hist. eq. function
-        possibility = [0 for i in range(256)]  # need for local hist. eq.
-        for v in range(3):
-            for h in range(3):
-                P = local[v][h]
-                possibility[P] = possibility[P] + 1
+    def HELocalFillImagewithEqualizedKernel(self, newimg, EqualizedKernel, i, j, kernelsize):
+        from_x = i - int(math.floor(kernelsize / 2))
+        to_x = i + int(math.floor(kernelsize / 2))
+        from_y = j - int(math.floor(kernelsize / 2))
+        to_y = j + int(math.floor(kernelsize / 2))
+        newimg[from_x:to_x+1, from_y:to_y+1] = EqualizedKernel
 
-        for o in range(256):
-            possibility[o] = float(float(float(possibility[o]) / 9) * 255)
-            possibility[o] = int(round(possibility[o]))
-
-        S = local[1][1]
-
-        return possibility[S]
+        return newimg
 
     def addpadding(self, source, pad):
         imarr = np.array(source)
@@ -441,16 +435,16 @@ class Application(tk.Frame):
         filtered_image = image
         num_rows = image.shape[1]
         num_cols = image.shape[0]
-        #imgwithpadding = self.addpadding(image, filtertmp)
+        imgwithpadding = self.addpadding(image, filtertmp)
         # assumes the kernel is simmetric and of odd dimensions
         edge = int(math.floor(filter_size[0]/2))
 
-        for i in range(edge, num_rows - edge):
-            for j in range(edge, num_cols - edge):
-                kernel = self.fill_kernel(i, j, filter_size, image)
-                filtered_image[i, j] = self.get_mean(kernel.flatten())
+        for j in range(edge, num_rows - edge):
+            for i in range(edge, num_cols - edge):
+                kernel = self.fill_kernel(i, j, filter_size, imgwithpadding)
+                imgwithpadding[i, j] = self.get_mean(kernel.flatten())
 
-        return filtered_image
+        return imgwithpadding
 
     def get_mean(self, vector):
         mean = 0
@@ -482,8 +476,8 @@ class Application(tk.Frame):
         # asumes the kernel is simmetric and of odd dimensions
         edge = int(math.floor(filter_size[0] / 2))
 
-        for i in range(edge, num_rows - edge):
-            for j in range(edge, num_cols - edge):
+        for j in range(edge, num_rows - edge):
+            for i in range(edge, num_cols - edge):
                 kernel = self.fill_kernel(i, j, filter_size, image)
                 filtered_image[i, j] = self.get_median(kernel.flatten())
 
@@ -504,8 +498,8 @@ class Application(tk.Frame):
         imgwithpadding = self.addpadding(image, filtertmp)
         edge = int(math.floor(filter_size[0] / 2))
 
-        for i in range(edge, num_rows - edge):
-            for j in range(edge, num_cols - edge):
+        for j in range(edge, num_rows - edge):
+            for i in range(edge, num_cols - edge):
                 kernel = self.fill_kernel(i, j, filter_size, imgwithpadding)
                 filtered_image[i, j] = self.ApplyLaplacianMaskToKernel(kernel.flatten())
         return filtered_image
