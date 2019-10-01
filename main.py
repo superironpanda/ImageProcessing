@@ -68,14 +68,22 @@ class Application(tk.Frame):
     def createBitPlaneCheckBoxes(self, dropdownlisFrame):
         self.labelBitPlaneBits = tk.Label(dropdownlisFrame, text="Bit Plane Bits")
         self.labelBitPlaneBits.pack()
-        self.BitPlaneBitsCheckBox0 = tk.Checkbutton(dropdownlisFrame, text="Bit Plane 0")
-        self.BitPlaneBitsCheckBox1 = tk.Checkbutton(dropdownlisFrame, text="Bit Plane 1")
-        self.BitPlaneBitsCheckBox2 = tk.Checkbutton(dropdownlisFrame, text="Bit Plane 2")
-        self.BitPlaneBitsCheckBox3 = tk.Checkbutton(dropdownlisFrame, text="Bit Plane 3")
-        self.BitPlaneBitsCheckBox4 = tk.Checkbutton(dropdownlisFrame, text="Bit Plane 4")
-        self.BitPlaneBitsCheckBox5 = tk.Checkbutton(dropdownlisFrame, text="Bit Plane 5")
-        self.BitPlaneBitsCheckBox6 = tk.Checkbutton(dropdownlisFrame, text="Bit Plane 6")
-        self.BitPlaneBitsCheckBox7 = tk.Checkbutton(dropdownlisFrame, text="Bit Plane 7")
+        self.BitCheckBox0Var = tk.BooleanVar()
+        self.BitCheckBox1Var = tk.BooleanVar()
+        self.BitCheckBox2Var = tk.BooleanVar()
+        self.BitCheckBox3Var = tk.BooleanVar()
+        self.BitCheckBox4Var = tk.BooleanVar()
+        self.BitCheckBox5Var = tk.BooleanVar()
+        self.BitCheckBox6Var = tk.BooleanVar()
+        self.BitCheckBox7Var = tk.BooleanVar()
+        self.BitPlaneBitsCheckBox0 = tk.Checkbutton(dropdownlisFrame, text="Bit Plane 0", var=self.BitCheckBox0Var)
+        self.BitPlaneBitsCheckBox1 = tk.Checkbutton(dropdownlisFrame, text="Bit Plane 1", var=self.BitCheckBox1Var)
+        self.BitPlaneBitsCheckBox2 = tk.Checkbutton(dropdownlisFrame, text="Bit Plane 2", var=self.BitCheckBox2Var)
+        self.BitPlaneBitsCheckBox3 = tk.Checkbutton(dropdownlisFrame, text="Bit Plane 3", var=self.BitCheckBox3Var)
+        self.BitPlaneBitsCheckBox4 = tk.Checkbutton(dropdownlisFrame, text="Bit Plane 4", var=self.BitCheckBox4Var)
+        self.BitPlaneBitsCheckBox5 = tk.Checkbutton(dropdownlisFrame, text="Bit Plane 5", var=self.BitCheckBox5Var)
+        self.BitPlaneBitsCheckBox6 = tk.Checkbutton(dropdownlisFrame, text="Bit Plane 6", var=self.BitCheckBox6Var)
+        self.BitPlaneBitsCheckBox7 = tk.Checkbutton(dropdownlisFrame, text="Bit Plane 7", var=self.BitCheckBox7Var)
 
         self.BitPlaneBitsCheckBox0.pack()
         self.BitPlaneBitsCheckBox1.pack()
@@ -433,7 +441,7 @@ class Application(tk.Frame):
         filtered_image = image
         num_rows = image.shape[1]
         num_cols = image.shape[0]
-
+        #imgwithpadding = self.addpadding(image, filtertmp)
         # assumes the kernel is simmetric and of odd dimensions
         edge = int(math.floor(filter_size[0]/2))
 
@@ -488,23 +496,29 @@ class Application(tk.Frame):
 
     def SharpeningLaplacianFilter(self):
         image = self.convert_to_array()
-        mask = self.LaplacianFilterMask()
-        img_list = []
-        for img_row in range(int(len(mask) / 2), len(image) - int(len(mask) / 2)):
-            for img_col in range(int(len(mask[0]) / 2), len(image[0]) - int(len(mask[0]) / 2)):
-                img_list.append(np.mean(np.multiply(image[img_row - int(len(mask) / 2):img_row + int(len(mask) / 2) + 1,
-                                                    img_col - int(len(mask[0]) / 2):img_col + int(len(mask[0]) / 2) + 1]
-                                                    , mask)))
-        masked_image = np.pad(np.array(img_list).reshape(-1, len(image[0]) - len(mask[0]) + 1), int(len(mask) / 2), 'edge')
-        x, y = np.where(masked_image > np.max(masked_image) * 0.9)
+        filtertmp = int(self.filterHeight.get("1.0", tk.END))
+        filter_size = np.array([filtertmp, filtertmp])
+        filtered_image = image
+        num_rows = image.shape[1]
+        num_cols = image.shape[0]
+        imgwithpadding = self.addpadding(image, filtertmp)
+        edge = int(math.floor(filter_size[0] / 2))
 
-        image = cv.cvtColor(image, cv.COLOR_GRAY2BGR)
-        print("Points detected: ")
-        for i, j in zip(x, y):
-            cv.circle(image, (j, i), 5, [0, 0, 255], thickness=2, lineType=8, shift=0)
-            print((i, j))
-        cv.imwrite('Results/res_point.jpg', image)
-        return np.asarray(masked_image)
+        for i in range(edge, num_rows - edge):
+            for j in range(edge, num_cols - edge):
+                kernel = self.fill_kernel(i, j, filter_size, imgwithpadding)
+                filtered_image[i, j] = self.ApplyLaplacianMaskToKernel(kernel.flatten())
+        return filtered_image
+
+    def ApplyLaplacianMaskToKernel(self, vector):
+        total = 0
+        filtertmp = int(self.filterHeight.get("1.0", tk.END))
+        for i in range(0, len(vector)):
+            if i == int(len(vector)/2)+1:
+                total += int(vector[i]*(-8))
+            else:
+                total += vector[i]
+        return total
 
     def LaplacianFilterMask(self):
         n = int(self.filterHeight.get("1.0", tk.END))
@@ -534,7 +548,61 @@ class Application(tk.Frame):
         return gmask
 
     def BitPlane(self):
-        return 1
+        oldimagearray = self.convert_to_array()
+        height = int(oldimagearray.shape[0])
+        width = int(oldimagearray.shape[1])
+        bitPlane1 = np.zeros((height, width))
+        bitPlane2 = np.zeros((height, width))
+        bitPlane3 = np.zeros((height, width))
+        bitPlane4 = np.zeros((height, width))
+        bitPlane5 = np.zeros((height, width))
+        bitPlane6 = np.zeros((height, width))
+        bitPlane7 = np.zeros((height, width))
+        bitPlane8 = np.zeros((height, width))
+        newimgarray = np.zeros((height, width))
+        for i in range(height):
+            for j in range(width):
+                value = oldimagearray[i][j]
+                if value < 2:
+                    bitPlane1[i][j] = oldimagearray[i][j]
+                elif value < 4:
+                    bitPlane2[i][j] = oldimagearray[i][j]
+                elif value < 8:
+                    bitPlane3[i][j] = oldimagearray[i][j]
+                elif value < 16:
+                    bitPlane4[i][j] = oldimagearray[i][j]
+                elif value < 32:
+                    bitPlane5[i][j] = oldimagearray[i][j]
+                elif value < 64:
+                    bitPlane6[i][j] = oldimagearray[i][j]
+                elif value < 128:
+                    bitPlane7[i][j] = oldimagearray[i][j]
+                elif value < 256:
+                    bitPlane8[i][j] = oldimagearray[i][j]
+
+        if self.BitCheckBox0Var.get():
+            newimgarray = self.AddBitPlaneToFinalImage(height, width, newimgarray, bitPlane1)
+        if self.BitCheckBox1Var.get():
+            newimgarray = self.AddBitPlaneToFinalImage(height, width, newimgarray, bitPlane2)
+        if self.BitCheckBox2Var.get():
+            newimgarray = self.AddBitPlaneToFinalImage(height, width, newimgarray, bitPlane3)
+        if self.BitCheckBox3Var.get():
+            newimgarray = self.AddBitPlaneToFinalImage(height, width, newimgarray, bitPlane4)
+        if self.BitCheckBox4Var.get():
+            newimgarray = self.AddBitPlaneToFinalImage(height, width, newimgarray, bitPlane5)
+        if self.BitCheckBox5Var.get():
+            newimgarray = self.AddBitPlaneToFinalImage(height, width, newimgarray, bitPlane6)
+        if self.BitCheckBox6Var.get():
+            newimgarray = self.AddBitPlaneToFinalImage(height, width, newimgarray, bitPlane7)
+        if self.BitCheckBox7Var.get():
+            newimgarray = self.AddBitPlaneToFinalImage(height, width, newimgarray, bitPlane8)
+
+        return newimgarray
+    def AddBitPlaneToFinalImage(self, height, width, newimgarray, bitplaneimg):
+        for i in range(height):
+            for j in range(width):
+                    newimgarray[i][j] += bitplaneimg[i][j]
+        return newimgarray
 
     def create_uploadbutton(self):
         self.labelFrame = ttk.LabelFrame(self, text="Open A File")
@@ -566,7 +634,7 @@ class Application(tk.Frame):
         newWindow.mainloop()
 
     def convert_to_array(self):
-        img = Image.open(self.filename)
+        img = Image.open(self.filename).convert('L')
         newimgarray = np.array(img)
         return newimgarray
 
