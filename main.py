@@ -1,7 +1,9 @@
 import tkinter as tk
 from tkinter import filedialog, ttk
-from PIL import ImageTk, Image
+from PIL import ImageTk, Image, ImageDraw
 import numpy as np
+import math
+import cv2 as cv
 
 
 class Application(tk.Frame):
@@ -182,25 +184,26 @@ class Application(tk.Frame):
             newimgarray = np.asarray(self.linear_y())
         elif chosenAlgorithmStr == "Histogram Equalization(Global)":
             method = "Histogram Equalization(Global)"
-            newimgarray = np.asarray(self.HistogramEqualizationGlobal)
+            oldimgarray = self.convert_to_array()
+            newimgarray = np.asarray(self.HistogramEqualizationGlobal(oldimgarray))
         elif chosenAlgorithmStr == "Histogram Equalization(Local)":
             method = "Histogram Equalization(Local)"
-            newimgarray = np.asarray(self.HistogramEqualizationLocal)
+            newimgarray = np.asarray(self.HistogramEqualizationLocal())
         elif chosenAlgorithmStr == "Smoothing Filter":
             method = "Smoothing Filter"
-            newimgarray = np.asarray(self.SmoothingFilter)
+            newimgarray = np.asarray(self.SmoothingFilter())
         elif chosenAlgorithmStr == "Median Filter":
             method = "Median Filter"
-            newimgarray = np.asarray(self.MedianFilter)
+            newimgarray = np.asarray(self.MedianFilter())
         elif chosenAlgorithmStr == "Sharpening Laplacian Filter":
             method = "Sharpening Laplacian Filter"
-            newimgarray = np.asarray(self.SharpeningLaplacianFilter)
+            newimgarray = np.asarray(self.SharpeningLaplacianFilter())
         elif chosenAlgorithmStr == "High-boosting Filter":
             method = "High-boosting Filter"
-            newimgarray = np.asarray(self.HighBoostingFilter)
+            newimgarray = np.asarray(self.HighBoostingFilter())
         elif chosenAlgorithmStr == "Bit Plane":
             method = "Bit Plane"
-            newimgarray = np.asarray(self.BitPlane)
+            newimgarray = np.asarray(self.BitPlane())
 
         if self.bit.get("1.0", tk.END) == "\n":
             print("bits are not changing")
@@ -337,23 +340,198 @@ class Application(tk.Frame):
         #newimg.show()
         return newimgarray
 
-    def HistogramEqualizationGlobal(self):
-        return 1
+    def HistogramEqualizationGlobal(self, oldimgarray):
+        oldimgarray1D = oldimgarray.flatten()
+        hist = self.get_histogram(oldimgarray1D, 256)
+        cs = self.cumsum(hist)
+
+        # numerator & denomenator
+        nj = (cs - cs.min()) * 255
+        N = cs.max() - cs.min()
+
+        # re-normalize the cdf
+        cs = nj / N
+        cs = cs.astype('uint8')
+        img_new = cs[oldimgarray1D]
+        img_new = np.reshape(img_new, oldimgarray.shape)
+        return img_new
+
+    def get_histogram(self, image, bins):
+        # array with size of bins, set to zeros
+        histogram = np.zeros(bins)
+
+        # loop through pixels and sum up counts of pixels
+        for pixel in image:
+            histogram[pixel] += 1
+
+        # return our final result
+        return histogram
+
+    def cumsum(self, a):
+        a = iter(a)
+        b = [next(a)]
+        for i in a:
+            b.append(b[-1] + i)
+        return np.array(b)
 
     def HistogramEqualizationLocal(self):
-        return 1
+        oldimgarray = self.convert_to_array()
+        sizex = int(oldimgarray.shape[0])
+        sizey = int(oldimgarray.shape[1])
+        filtersize = int(self.filterHeight.get("1.0", tk.END))
+        filtersizeTmp = int(filtersize/2)
+        img = self.addpadding(oldimgarray,1)
+        Matrix = [[0 for x in range(sizex+2)] for y in range(sizey+2)]
+
+        Matrix = [[0 for x in range(sizex + 2)] for y in range(sizey + 2)]
+
+        for i in range(sizex):
+            for y in range(sizey):
+                temp1 = np.array([img[i, y], img[i + 1, y], img[i + 2, y]])
+                local = np.vstack([temp1])
+                temp2 = np.array([img[i, y + 1], img[i + 1, y + 1], img[i + 2, y + 1]])
+                local = np.vstack([local, temp2])
+                temp3 = np.array([img[i, y + 2], img[i + 1, y + 2], img[i + 2, y + 2]])
+                local = np.vstack([local, temp3])
+                Matrix[i + 1][y + 1] = self.part(local)
+
+        MatrixFinish = [[0 for x in range(sizex)] for y in
+                        range(sizey)]  # again convert orjinal  size"example 512 x 512 image"
+        for k in range(sizex):
+            for t in range(sizey):
+                MatrixFinish[t][k] = Matrix[t + 1][k + 1]
+
+        # finish part
+        Image = np.asarray(MatrixFinish)
+        return Image
+
+    def part(self, local):  # local hist. eq. function
+        possibility = [0 for i in range(256)]  # need for local hist. eq.
+        for v in range(3):
+            for h in range(3):
+                P = local[v][h]
+                possibility[P] = possibility[P] + 1
+
+        for o in range(256):
+            possibility[o] = float(float(float(possibility[o]) / 9) * 255)
+            possibility[o] = int(round(possibility[o]))
+
+        S = local[1][1]
+
+        return possibility[S]
+
+    def addpadding(self, source, pad):
+        imarr = np.array(source)
+        padimarr = np.zeros((imarr.shape[0] + 2 * pad, imarr.shape[1] + 2 * pad), dtype=np.uint8)
+        padimarr[pad:padimarr.shape[0] - pad, pad:padimarr.shape[1] - pad] = imarr
+        return padimarr
 
     def SmoothingFilter(self):
-        return 1
+        image = self.convert_to_array()
+        filtertmp=int(self.filterHeight.get("1.0", tk.END))
+        filter_size = np.array([filtertmp, filtertmp])
+        filtered_image = image
+        num_rows = image.shape[1]
+        num_cols = image.shape[0]
+
+        # assumes the kernel is simmetric and of odd dimensions
+        edge = int(math.floor(filter_size[0]/2))
+
+        for i in range(edge, num_rows - edge):
+            for j in range(edge, num_cols - edge):
+                kernel = self.fill_kernel(i, j, filter_size, image)
+                filtered_image[i, j] = self.get_mean(kernel.flatten())
+
+        return filtered_image
+
+    def get_mean(self, vector):
+        mean = 0
+        for i in range(0, len(vector)):
+            mean += vector[i]
+        return int(mean / len(vector))
+
+    def fill_kernel(self, kernel_mid_x, kernel_mid_y, kernel_size, image):
+
+        kernel = np.zeros((kernel_size[0], kernel_size[1]), dtype=int)
+        from_x = kernel_mid_x - int(math.floor(kernel_size[1] / 2))
+        to_x = kernel_mid_x + int(math.floor(kernel_size[1] / 2))
+        from_y = kernel_mid_y - int(math.floor(kernel_size[0] / 2))
+        to_y = kernel_mid_y + int(math.floor(kernel_size[0] / 2))
+
+        for i in range(from_x, to_x + 1):
+            for j in range(from_y, to_y + 1):
+                kernel[i - from_x, j - from_y] = image[i, j]
+        return kernel
 
     def MedianFilter(self):
-        return 1
+        image = self.convert_to_array()
+        filtertmp = int(self.filterHeight.get("1.0", tk.END))
+        filter_size = np.array([filtertmp, filtertmp])
+        filtered_image = image
+        num_rows = image.shape[1]
+        num_cols = image.shape[0]
+
+        # asumes the kernel is simmetric and of odd dimensions
+        edge = int(math.floor(filter_size[0] / 2))
+
+        for i in range(edge, num_rows - edge):
+            for j in range(edge, num_cols - edge):
+                kernel = self.fill_kernel(i, j, filter_size, image)
+                filtered_image[i, j] = self.get_median(kernel.flatten())
+
+        return filtered_image
+
+    def get_median(self, vector):
+        vector = np.sort(vector)
+        median = vector[int(math.floor(len(vector) / 2))]
+        return median
 
     def SharpeningLaplacianFilter(self):
-        return 1
+        image = self.convert_to_array()
+        mask = self.LaplacianFilterMask()
+        img_list = []
+        for img_row in range(int(len(mask) / 2), len(image) - int(len(mask) / 2)):
+            for img_col in range(int(len(mask[0]) / 2), len(image[0]) - int(len(mask[0]) / 2)):
+                img_list.append(np.mean(np.multiply(image[img_row - int(len(mask) / 2):img_row + int(len(mask) / 2) + 1,
+                                                    img_col - int(len(mask[0]) / 2):img_col + int(len(mask[0]) / 2) + 1]
+                                                    , mask)))
+        masked_image = np.pad(np.array(img_list).reshape(-1, len(image[0]) - len(mask[0]) + 1), int(len(mask) / 2), 'edge')
+        x, y = np.where(masked_image > np.max(masked_image) * 0.9)
+
+        image = cv.cvtColor(image, cv.COLOR_GRAY2BGR)
+        print("Points detected: ")
+        for i, j in zip(x, y):
+            cv.circle(image, (j, i), 5, [0, 0, 255], thickness=2, lineType=8, shift=0)
+            print((i, j))
+        cv.imwrite('Results/res_point.jpg', image)
+        return np.asarray(masked_image)
+
+    def LaplacianFilterMask(self):
+        n = int(self.filterHeight.get("1.0", tk.END))
+
+        mask = np.ones((n, n))
+        for i in range(n):
+            for j in range(n):
+                mask[i][j] = -1
+        mask[int(n/2)+1, int(n/2)+1] = - (pow(2, n))
+        return mask
 
     def HighBoostingFilter(self):
-        return 1
+        blurredImg = self.SmoothingFilter()
+        originalImg = self.convert_to_array()
+        newheight = int(originalImg.shape[0])
+        newwidth = int(originalImg.shape[1])
+        gmask = np.ndarray(shape=(newheight,
+                                        newwidth), dtype=np.int)
+        newimgarray = np.ndarray(shape=(newheight,
+                                        newwidth), dtype=np.int)
+        for i in range(newheight):
+            for j in range(newwidth):
+                gmask[i][j] = int(originalImg[i][j]) - int(blurredImg[i][j])
+        for i in range(newheight):
+            for j in range(newwidth):
+                newimgarray[i][j] = int(originalImg[i][j] + 1.2*gmask[i][j])
+        return gmask
 
     def BitPlane(self):
         return 1
