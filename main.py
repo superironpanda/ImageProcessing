@@ -389,14 +389,13 @@ class Application(tk.Frame):
         sizey = int(oldimgarray.shape[1])
         filtersize = int(self.filterHeight.get("1.0", tk.END))
         paddedimg = self.addpadding(oldimgarray, filtersize)
-        newimg = oldimgarray
+        newimg = np.asarray(np.zeros((sizex, sizey)))
         filter_size = np.array([filtersize, filtersize])
         edge = int(math.floor(filtersize/2))
 
         for i in range(0, sizex):
             for j in range(0, sizey):
-                kernel = self.HELocalFillKernel(i, j, filter_size, newimg)
-                print(kernel)
+                kernel = self.HELocalFillKernel(i, j, filter_size, oldimgarray)
                 EqualizedKernel = self.HistogramEqualizationGlobal(kernel)
                 newimg[i][j] = self.HELocalFindCenterPixel(filtersize, EqualizedKernel)
         return newimg
@@ -444,13 +443,13 @@ class Application(tk.Frame):
         filtered_image = image
         num_rows = image.shape[1]
         num_cols = image.shape[0]
-        newimg = image
+        newimg = np.asarray(np.zeros((num_rows, num_cols)))
         # assumes the kernel is simmetric and of odd dimensions
         edge = int(math.floor(filter_size[0]/2))
 
         for j in range(0, num_rows):
             for i in range(0, num_cols):
-                kernel = self.fill_kernel(i, j, filter_size, newimg)
+                kernel = self.fill_kernel(i, j, filter_size, image)
                 newimg[i, j] = self.get_mean(kernel.flatten())
 
         return newimg
@@ -482,10 +481,10 @@ class Application(tk.Frame):
         image = self.convert_to_array()
         filtertmp = int(self.filterHeight.get("1.0", tk.END))
         filter_size = np.array([filtertmp, filtertmp])
-        filtered_image = image
+
         num_rows = image.shape[1]
         num_cols = image.shape[0]
-
+        filtered_image = np.asarray(np.zeros((num_rows, num_cols)))
         # asumes the kernel is simmetric and of odd dimensions
         edge = int(math.floor(filter_size[0] / 2))
 
@@ -502,51 +501,42 @@ class Application(tk.Frame):
         return median
 
     def SharpeningLaplacianFilter(self):
-        image = self.convert_to_array()
+        img = self.convert_to_array()
         filtertmp = int(self.filterHeight.get("1.0", tk.END))
         filter_size = np.array([filtertmp, filtertmp])
-        newimg = image
-        h = image.shape[0]
-        w = image.shape[1]
+
+        num_rows = img.shape[1]
+        num_cols = img.shape[0]
+        newimg = np.asarray(np.zeros((num_rows, num_cols)))
         #imgwithpadding = self.addpadding(image, filtertmp)
         mask = self.createLaplacianKernel(filtertmp)
-        kernel = self.fill_kernel(510,511,[3,3], image)
-        print(kernel)
+        counter = 0
+        for j in range(0, num_rows):
+            for i in range(0, num_cols):
+                self.kernel = self.fill_kernel(i, j, filter_size, img)
+                newimg[i, j] = self.findLaplacianCenterValue(mask, 2, filtertmp)
         return newimg
-        '''for i in range(0, h):
-            for j in range(0, w):
-                kernel = self.fill_kernel(i, j, filter_size, image)
-                pixel = 0
-                for m in range(filtertmp):
-                    for n in range(filtertmp):
-                        pixel = int(pixel + mask[m][n]*kernel[m][n])
-                if pixel>255:
-                    pixel=255
-                elif pixel<0:
-                    pixel=0
-                newimg[i][j] = pixel
-        return newimg'''
+
+    def testfunc(self):
+        print(self.kernel)
+
+    def findLaplacianCenterValue(self, mask, kernel, filtersize):
+        p = int(0)
+        for i in range(filtersize):
+            for j in range(filtersize):
+                kernelValue = self.kernel[i][j]
+                p += int(mask[i][j]*kernelValue)
+        if p > 255:
+            p = 255
+        elif p < 0:
+            p = 0
+        return p
 
     def createLaplacianKernel(self, filtersize):
-        mask = np.ones((filtersize,filtersize))
+        mask = np.ones((filtersize, filtersize))
         center = -(filtersize*filtersize - 1)
         mask[int(filtersize/2)][int(filtersize/2)] = center
-        return mask
-
-    def ApplyLaplacianMaskToKernel(self, vector):
-        total = 0
-        filtertmp = int(self.filterHeight.get("1.0", tk.END))
-        for i in range(0, len(vector)):
-            if i == int(len(vector)/2):
-                total += int(vector[i]*(-((filtertmp*filtertmp)-1)))
-            else:
-                total += vector[i]
-
-        if total>255:
-            total = 255
-        elif total<0:
-            total = 0
-        return total
+        return np.asarray(mask)
 
     def HighBoostingFilter(self):
         blurredImg = self.SmoothingFilter()
