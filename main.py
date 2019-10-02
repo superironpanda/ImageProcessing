@@ -339,10 +339,10 @@ class Application(tk.Frame):
                 y = int(i*yr)
                 diffX = (j * xr) - x
                 diffY = (i * yr) - y
-                a = oldimgarray[y][x];
-                b = oldimgarray[y][x + 1];
-                c = oldimgarray[y + 1][x];
-                d = oldimgarray[y + 1][x + 1];
+                a = oldimgarray[y][x]
+                b = oldimgarray[y][x + 1]
+                c = oldimgarray[y + 1][x]
+                d = oldimgarray[y + 1][x + 1]
                 newimgarray[i][j] = int(a*(1-diffX)*(1-diffY)+b*diffX*(1-diffY)+c*(1-diffX)*diffY+d*diffX*diffY)
         #newimg = Image.fromarray(np.asarray(newimgarray))
         #newimg.show()
@@ -388,29 +388,38 @@ class Application(tk.Frame):
         sizex = int(oldimgarray.shape[0])
         sizey = int(oldimgarray.shape[1])
         filtersize = int(self.filterHeight.get("1.0", tk.END))
-        filtersizeTmp = int(filtersize/2)
         paddedimg = self.addpadding(oldimgarray, filtersize)
-        newimg = paddedimg
+        newimg = oldimgarray
+        filter_size = np.array([filtersize, filtersize])
         edge = int(math.floor(filtersize/2))
 
-        for i in range(edge, sizex-edge):
-            for j in range(edge, sizey-edge):
-                kernel = self.HELocalFillKernel(i, j, filtersize, paddedimg)
+        for i in range(0, sizex):
+            for j in range(0, sizey):
+                kernel = self.HELocalFillKernel(i, j, filter_size, newimg)
+                print(kernel)
                 EqualizedKernel = self.HistogramEqualizationGlobal(kernel)
-                newimg = self.HELocalFillImagewithEqualizedKernel(newimg, EqualizedKernel, i, j, filtersize)
-
+                newimg[i][j] = self.HELocalFindCenterPixel(filtersize, EqualizedKernel)
         return newimg
 
-    def HELocalFillKernel(self, i, j, kernelsize, paddedimage):
-        kernel = np.zeros((kernelsize, kernelsize), dtype=int)
-        from_x = i - int(math.floor(kernelsize / 2))
-        to_x = i + int(math.floor(kernelsize / 2))
-        from_y = j - int(math.floor(kernelsize / 2))
-        to_y = j + int(math.floor(kernelsize / 2))
+    def HELocalFindCenterPixel(self, kernelsize, equalizedKernel):
+        tmpEqualizedKernel = equalizedKernel.flatten()
+        return tmpEqualizedKernel[int(kernelsize*kernelsize/2)]
 
-        for m in range(from_x, to_x + 1):
-            for n in range(from_y, to_y + 1):
-                kernel[m - from_x, n - from_y] = paddedimage[m, n]
+    def HELocalFillKernel(self, i, j, kernelsize, image):
+        kernel = np.zeros((kernelsize[0], kernelsize[1]), dtype=int)
+        center = int(kernelsize[0]/2)
+        h = image.shape[0]
+        w = image.shape[1]
+        pixel = int(0)
+        for y in range(kernelsize[0]):
+            for x in range(kernelsize[0]):
+                deltaY = y - center
+                deltaX = x - center
+                if i+deltaY>=0 and i+deltaY<h and j+deltaX>=0 and j+deltaX<w:
+                    pixel = int(image[i+deltaY][j+deltaX])
+                else:
+                    pixel = 0
+                kernel[y][x]=pixel
         return kernel
 
     def HELocalFillImagewithEqualizedKernel(self, newimg, EqualizedKernel, i, j, kernelsize):
@@ -435,16 +444,16 @@ class Application(tk.Frame):
         filtered_image = image
         num_rows = image.shape[1]
         num_cols = image.shape[0]
-        imgwithpadding = self.addpadding(image, filtertmp)
+        newimg = image
         # assumes the kernel is simmetric and of odd dimensions
         edge = int(math.floor(filter_size[0]/2))
 
-        for j in range(edge, num_rows - edge):
-            for i in range(edge, num_cols - edge):
-                kernel = self.fill_kernel(i, j, filter_size, imgwithpadding)
-                imgwithpadding[i, j] = self.get_mean(kernel.flatten())
+        for j in range(0, num_rows):
+            for i in range(0, num_cols):
+                kernel = self.fill_kernel(i, j, filter_size, newimg)
+                newimg[i, j] = self.get_mean(kernel.flatten())
 
-        return imgwithpadding
+        return newimg
 
     def get_mean(self, vector):
         mean = 0
@@ -452,17 +461,21 @@ class Application(tk.Frame):
             mean += vector[i]
         return int(mean / len(vector))
 
-    def fill_kernel(self, kernel_mid_x, kernel_mid_y, kernel_size, image):
-
+    def fill_kernel(self, i, j, kernel_size, image):
         kernel = np.zeros((kernel_size[0], kernel_size[1]), dtype=int)
-        from_x = kernel_mid_x - int(math.floor(kernel_size[1] / 2))
-        to_x = kernel_mid_x + int(math.floor(kernel_size[1] / 2))
-        from_y = kernel_mid_y - int(math.floor(kernel_size[0] / 2))
-        to_y = kernel_mid_y + int(math.floor(kernel_size[0] / 2))
-
-        for i in range(from_x, to_x + 1):
-            for j in range(from_y, to_y + 1):
-                kernel[i - from_x, j - from_y] = image[i, j]
+        center = int(kernel_size[0] / 2)
+        h = image.shape[0]
+        w = image.shape[1]
+        pixel = int(0)
+        for y in range(kernel_size[0]):
+            for x in range(kernel_size[0]):
+                deltaY = y - center
+                deltaX = x - center
+                if i + deltaY >= 0 and i + deltaY < h and j + deltaX >= 0 and j + deltaX < w:
+                    pixel = int(image[i + deltaY][j + deltaX])
+                else:
+                    pixel = 0
+                kernel[y][x] = pixel
         return kernel
 
     def MedianFilter(self):
@@ -476,8 +489,8 @@ class Application(tk.Frame):
         # asumes the kernel is simmetric and of odd dimensions
         edge = int(math.floor(filter_size[0] / 2))
 
-        for j in range(edge, num_rows - edge):
-            for i in range(edge, num_cols - edge):
+        for j in range(0, num_rows):
+            for i in range(0, num_cols):
                 kernel = self.fill_kernel(i, j, filter_size, image)
                 filtered_image[i, j] = self.get_median(kernel.flatten())
 
@@ -492,37 +505,48 @@ class Application(tk.Frame):
         image = self.convert_to_array()
         filtertmp = int(self.filterHeight.get("1.0", tk.END))
         filter_size = np.array([filtertmp, filtertmp])
-        filtered_image = image
-        num_rows = image.shape[1]
-        num_cols = image.shape[0]
-        imgwithpadding = self.addpadding(image, filtertmp)
-        edge = int(math.floor(filter_size[0] / 2))
+        newimg = image
+        h = image.shape[0]
+        w = image.shape[1]
+        #imgwithpadding = self.addpadding(image, filtertmp)
+        mask = self.createLaplacianKernel(filtertmp)
+        kernel = self.fill_kernel(510,511,[3,3], image)
+        print(kernel)
+        return newimg
+        '''for i in range(0, h):
+            for j in range(0, w):
+                kernel = self.fill_kernel(i, j, filter_size, image)
+                pixel = 0
+                for m in range(filtertmp):
+                    for n in range(filtertmp):
+                        pixel = int(pixel + mask[m][n]*kernel[m][n])
+                if pixel>255:
+                    pixel=255
+                elif pixel<0:
+                    pixel=0
+                newimg[i][j] = pixel
+        return newimg'''
 
-        for j in range(edge, num_rows - edge):
-            for i in range(edge, num_cols - edge):
-                kernel = self.fill_kernel(i, j, filter_size, imgwithpadding)
-                filtered_image[i, j] = self.ApplyLaplacianMaskToKernel(kernel.flatten())
-        return filtered_image
+    def createLaplacianKernel(self, filtersize):
+        mask = np.ones((filtersize,filtersize))
+        center = -(filtersize*filtersize - 1)
+        mask[int(filtersize/2)][int(filtersize/2)] = center
+        return mask
 
     def ApplyLaplacianMaskToKernel(self, vector):
         total = 0
         filtertmp = int(self.filterHeight.get("1.0", tk.END))
         for i in range(0, len(vector)):
-            if i == int(len(vector)/2)+1:
-                total += int(vector[i]*(-8))
+            if i == int(len(vector)/2):
+                total += int(vector[i]*(-((filtertmp*filtertmp)-1)))
             else:
                 total += vector[i]
+
+        if total>255:
+            total = 255
+        elif total<0:
+            total = 0
         return total
-
-    def LaplacianFilterMask(self):
-        n = int(self.filterHeight.get("1.0", tk.END))
-
-        mask = np.ones((n, n))
-        for i in range(n):
-            for j in range(n):
-                mask[i][j] = -1
-        mask[int(n/2)+1, int(n/2)+1] = - (pow(2, n))
-        return mask
 
     def HighBoostingFilter(self):
         blurredImg = self.SmoothingFilter()
