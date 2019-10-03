@@ -118,6 +118,11 @@ class Application(tk.Frame):
         self.filterHeight.insert("1.0", "3")
         self.filterHeight.pack()
 
+        self.A = tk.Label(dropdownlisFrame, text="A")
+        self.A.pack()
+        self.AText = tk.Text(dropdownlisFrame, height=1, width=15)
+        self.AText.pack()
+
     def destroyBitPlaneBitsCheckBoxes(self):
         self.labelBitPlaneBits.destroy()
         self.BitPlaneBitsCheckBox0.destroy()
@@ -150,7 +155,11 @@ class Application(tk.Frame):
         self.filterWidth.destroy()
         self.labelFilterHeight.destroy()
         self.filterHeight.destroy()
-
+        try:
+            self.A.destroy()
+            self.AText.destroy()
+        except:
+            a=1
 
     def create_text_box(self):
         labelWidth = tk.Label(self, text="Width \n(Empty would be original size)")
@@ -443,7 +452,7 @@ class Application(tk.Frame):
         filtered_image = image
         num_rows = image.shape[1]
         num_cols = image.shape[0]
-        newimg = np.asarray(np.zeros((num_rows, num_cols)))
+        newimg = np.asarray(np.zeros((num_cols, num_rows)))
         # assumes the kernel is simmetric and of odd dimensions
         edge = int(math.floor(filter_size[0]/2))
 
@@ -484,7 +493,7 @@ class Application(tk.Frame):
 
         num_rows = image.shape[1]
         num_cols = image.shape[0]
-        filtered_image = np.asarray(np.zeros((num_rows, num_cols)))
+        filtered_image = np.asarray(np.zeros((num_cols, num_rows)))
         # asumes the kernel is simmetric and of odd dimensions
         edge = int(math.floor(filter_size[0] / 2))
 
@@ -507,25 +516,36 @@ class Application(tk.Frame):
 
         num_rows = img.shape[1]
         num_cols = img.shape[0]
-        newimg = np.asarray(np.zeros((num_rows, num_cols)))
+        newimg = np.asarray(np.zeros((num_cols, num_rows)))
         #imgwithpadding = self.addpadding(image, filtertmp)
         mask = self.createLaplacianKernel(filtertmp)
         counter = 0
         for j in range(0, num_rows):
             for i in range(0, num_cols):
-                self.kernel = self.fill_kernel(i, j, filter_size, img)
-                newimg[i, j] = self.findLaplacianCenterValue(mask, 2, filtertmp)
+                kernel = self.fill_kernel(i, j, filter_size, img)
+                newimg[i, j] = self.findLaplacianCenterValue(mask, kernel, filtertmp, 0)
+
+        '''for j in range(0, num_rows):
+            for i in range(0, num_cols):
+                newValue = newimg[i, j] + img[i, j]
+                if newValue > 255:
+                    newValue = 255
+                newimg[i, j] = newValue'''
         return newimg
 
     def testfunc(self):
         print(self.kernel)
 
-    def findLaplacianCenterValue(self, mask, kernel, filtersize):
+    def findLaplacianCenterValue(self, mask, kernel, filtersize, A):
         p = int(0)
         for i in range(filtersize):
             for j in range(filtersize):
-                kernelValue = self.kernel[i][j]
-                p += int(mask[i][j]*kernelValue)
+                kernelValue = kernel[i][j]
+                maskValue = int(mask[i][j])
+                if i == int(filtersize/2) and j == int(filtersize/2):
+                    p += int(maskValue*(kernelValue+A))
+                else:
+                    p += int(maskValue*kernelValue)
         if p > 255:
             p = 255
         elif p < 0:
@@ -538,22 +558,68 @@ class Application(tk.Frame):
         mask[int(filtersize/2)][int(filtersize/2)] = center
         return np.asarray(mask)
 
+    def createHightBoostingFilter(self, filtersize):
+        mask = np.ones((filtersize, filtersize))
+        center = (filtersize * filtersize - 1)
+        for i in range(filtersize):
+            for j in range(filtersize):
+                mask[i, j] = -1
+        mask[int(filtersize / 2)][int(filtersize / 2)] = center
+        return np.asarray(mask)
+        return mask
+
     def HighBoostingFilter(self):
-        blurredImg = self.SmoothingFilter()
+        img = self.convert_to_array()
+        filtertmp = int(self.filterHeight.get("1.0", tk.END))
+        filter_size = np.array([filtertmp, filtertmp])
+
+        num_rows = img.shape[1]
+        num_cols = img.shape[0]
+        newimg = np.asarray(np.zeros((num_cols, num_rows)))
+        imgMask = np.asarray(np.zeros((num_cols, num_rows)))
+        # imgwithpadding = self.addpadding(image, filtertmp)
+        mask = self.createHightBoostingFilter(filtertmp)
+        counter = 0
+        A = int(self.AText.get("1.0", tk.END))
+        for j in range(0, num_rows):
+            for i in range(0, num_cols):
+                kernel = self.fill_kernel(i, j, filter_size, img)
+                imgMask[i, j] = self.findLaplacianCenterValue(mask, kernel, filtertmp, A)
+        for j in range(0, num_rows):
+            for i in range(0, num_cols):
+                value = int(imgMask[i][j]) + int(img[i][j])
+                if value > 255:
+                    value = 255
+                elif value < 0:
+                    value = 0
+                newimg[i][j] = value
+
+        return newimg
+        '''blurredImg = self.SmoothingFilter()
         originalImg = self.convert_to_array()
         newheight = int(originalImg.shape[0])
         newwidth = int(originalImg.shape[1])
         gmask = np.ndarray(shape=(newheight,
-                                        newwidth), dtype=np.int)
+                                  newwidth), dtype=np.int)
         newimgarray = np.ndarray(shape=(newheight,
                                         newwidth), dtype=np.int)
         for i in range(newheight):
             for j in range(newwidth):
-                gmask[i][j] = int(originalImg[i][j]) - int(blurredImg[i][j])
+                value = int(originalImg[i][j]) - int(blurredImg[i][j])
+                if value > 255:
+                    value = 255
+                elif value < 0:
+                    value = 0
+                gmask[i][j] = value
         for i in range(newheight):
             for j in range(newwidth):
-                newimgarray[i][j] = int(originalImg[i][j] + 1.2*gmask[i][j])
-        return gmask
+                value = int(originalImg[i][j] + 1.2 * gmask[i][j])
+                if value > 255:
+                    value = 255
+                elif value < 0:
+                    value = 0
+                newimgarray[i][j] = value
+        return newimgarray'''
 
     def BitPlane(self):
         oldimagearray = self.convert_to_array()
@@ -606,6 +672,7 @@ class Application(tk.Frame):
             newimgarray = self.AddBitPlaneToFinalImage(height, width, newimgarray, bitPlane8)
 
         return newimgarray
+
     def AddBitPlaneToFinalImage(self, height, width, newimgarray, bitplaneimg):
         for i in range(height):
             for j in range(width):
