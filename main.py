@@ -525,12 +525,12 @@ class Application(tk.Frame):
                 kernel = self.fill_kernel(i, j, filter_size, img)
                 newimg[i, j] = self.findLaplacianCenterValue(mask, kernel, filtertmp, 0)
 
-        '''for j in range(0, num_rows):
+        for j in range(0, num_rows):
             for i in range(0, num_cols):
                 newValue = newimg[i, j] + img[i, j]
                 if newValue > 255:
                     newValue = 255
-                newimg[i, j] = newValue'''
+                newimg[i, j] = newValue
         return newimg
 
     def testfunc(self):
@@ -569,7 +569,7 @@ class Application(tk.Frame):
         return mask
 
     def HighBoostingFilter(self):
-        img = self.convert_to_array()
+        '''img = self.convert_to_array()
         filtertmp = int(self.filterHeight.get("1.0", tk.END))
         filter_size = np.array([filtertmp, filtertmp])
 
@@ -594,8 +594,8 @@ class Application(tk.Frame):
                     value = 0
                 newimg[i][j] = value
 
-        return newimg
-        '''blurredImg = self.SmoothingFilter()
+        return newimg'''
+        blurredImg = self.SmoothingFilter()
         originalImg = self.convert_to_array()
         newheight = int(originalImg.shape[0])
         newwidth = int(originalImg.shape[1])
@@ -603,6 +603,7 @@ class Application(tk.Frame):
                                   newwidth), dtype=np.int)
         newimgarray = np.ndarray(shape=(newheight,
                                         newwidth), dtype=np.int)
+        A = int(self.AText.get("1.0", tk.END))
         for i in range(newheight):
             for j in range(newwidth):
                 value = int(originalImg[i][j]) - int(blurredImg[i][j])
@@ -613,13 +614,13 @@ class Application(tk.Frame):
                 gmask[i][j] = value
         for i in range(newheight):
             for j in range(newwidth):
-                value = int(originalImg[i][j] + 1.2 * gmask[i][j])
+                value = int(originalImg[i][j] + A * gmask[i][j])
                 if value > 255:
                     value = 255
                 elif value < 0:
                     value = 0
                 newimgarray[i][j] = value
-        return newimgarray'''
+        return newimgarray
 
     def BitPlane(self):
         oldimagearray = self.convert_to_array()
@@ -634,42 +635,34 @@ class Application(tk.Frame):
         bitPlane7 = np.zeros((height, width))
         bitPlane8 = np.zeros((height, width))
         newimgarray = np.zeros((height, width))
+        bitPlaneArray = np.array(np.zeros(8), dtype=np.int)
+
+        if self.BitCheckBox0Var.get():
+            #newimgarray = self.AddBitPlaneToFinalImage(height, width, newimgarray, bitPlane1)
+            bitPlaneArray[0] = 1
+        if self.BitCheckBox1Var.get():
+            bitPlaneArray[1] = 1
+        if self.BitCheckBox2Var.get():
+            bitPlaneArray[2] = 1
+        if self.BitCheckBox3Var.get():
+            bitPlaneArray[3] = 1
+        if self.BitCheckBox4Var.get():
+            bitPlaneArray[4] = 1
+        if self.BitCheckBox5Var.get():
+            bitPlaneArray[5] = 1
+        if self.BitCheckBox6Var.get():
+            bitPlaneArray[6] = 1
+        if self.BitCheckBox7Var.get():
+            bitPlaneArray[7] = 1
+        bitPlaneString = ""
+        for i in range(8):
+            bitPlaneString = str(bitPlaneArray[i]) + bitPlaneString
+        #bitPlaneString = "0b"+bitPlaneString
         for i in range(height):
             for j in range(width):
                 value = oldimagearray[i][j]
-                if value < 2:
-                    bitPlane1[i][j] = oldimagearray[i][j]
-                elif value < 4:
-                    bitPlane2[i][j] = oldimagearray[i][j]
-                elif value < 8:
-                    bitPlane3[i][j] = oldimagearray[i][j]
-                elif value < 16:
-                    bitPlane4[i][j] = oldimagearray[i][j]
-                elif value < 32:
-                    bitPlane5[i][j] = oldimagearray[i][j]
-                elif value < 64:
-                    bitPlane6[i][j] = oldimagearray[i][j]
-                elif value < 128:
-                    bitPlane7[i][j] = oldimagearray[i][j]
-                elif value < 256:
-                    bitPlane8[i][j] = oldimagearray[i][j]
-
-        if self.BitCheckBox0Var.get():
-            newimgarray = self.AddBitPlaneToFinalImage(height, width, newimgarray, bitPlane1)
-        if self.BitCheckBox1Var.get():
-            newimgarray = self.AddBitPlaneToFinalImage(height, width, newimgarray, bitPlane2)
-        if self.BitCheckBox2Var.get():
-            newimgarray = self.AddBitPlaneToFinalImage(height, width, newimgarray, bitPlane3)
-        if self.BitCheckBox3Var.get():
-            newimgarray = self.AddBitPlaneToFinalImage(height, width, newimgarray, bitPlane4)
-        if self.BitCheckBox4Var.get():
-            newimgarray = self.AddBitPlaneToFinalImage(height, width, newimgarray, bitPlane5)
-        if self.BitCheckBox5Var.get():
-            newimgarray = self.AddBitPlaneToFinalImage(height, width, newimgarray, bitPlane6)
-        if self.BitCheckBox6Var.get():
-            newimgarray = self.AddBitPlaneToFinalImage(height, width, newimgarray, bitPlane7)
-        if self.BitCheckBox7Var.get():
-            newimgarray = self.AddBitPlaneToFinalImage(height, width, newimgarray, bitPlane8)
+                if int(value) & int(bitPlaneString):
+                    newimgarray[i][j] = oldimagearray[i][j] & int(bitPlaneString)
 
         return newimgarray
 
