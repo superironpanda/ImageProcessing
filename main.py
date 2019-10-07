@@ -38,6 +38,7 @@ class Application(tk.Frame):
             self.chosenAlgorithm = format(tkvar.get())
             createFilterSizeChecker = 0
             createBitPlaneBitsChecker = 0
+            createGEGlobalChecker = 0
             try:
                 if self.labelFilterWidth.winfo_exists():
                     createFilterSizeChecker = 1
@@ -50,20 +51,58 @@ class Application(tk.Frame):
             except:
                 createBitPlaneBitsChecker = 0
 
+            try:
+                if self.HEGlobalLabel.winfo_exists():
+                    createGEGlobalChecker = 1
+            except:
+                createGEGlobalChecker = 0
+
             if self.checkIfFilterNeededForAlgorithm() and createFilterSizeChecker == 0:
                 self.createFilterTxtBox(dropdownlisFrame)
             else:
-                self.destroyFilterAndBit(createFilterSizeChecker, createBitPlaneBitsChecker)
+                self.destroyFilterAndBit(createFilterSizeChecker, createBitPlaneBitsChecker, createGEGlobalChecker)
 
             if self.checkIfBitPlaneSelected() and createBitPlaneBitsChecker == 0:
                 self.createBitPlaneCheckBoxes(dropdownlisFrame)
             else:
-                self.destroyFilterAndBit(createFilterSizeChecker, createBitPlaneBitsChecker)
+                self.destroyFilterAndBit(createFilterSizeChecker, createBitPlaneBitsChecker, createGEGlobalChecker)
+            print(createGEGlobalChecker)
+            if self.checkIfGEGlobalSelected() and createGEGlobalChecker == 0:
+                self.createGEGlobalBoxes(dropdownlisFrame)
+            else:
+                self.destroyFilterAndBit(createFilterSizeChecker, createBitPlaneBitsChecker, createGEGlobalChecker)
 
         # link function to change dropdown
         tkvar.trace('w', change_dropdown)
         self.create_text_box()
         self.create_submit_button()
+
+    def checkIfGEGlobalSelected(self):
+        checkString = self.chosenAlgorithm
+        if checkString == "Histogram Equalization(Global)":
+            return True
+        else:
+            return False
+
+    def createGEGlobalBoxes(self, dropdownlisFrame):
+        self.HEGlobalLabel = tk.Label(dropdownlisFrame, text="HE Global output selection")
+        self.HEGlobalLabel.pack()
+        self.HEGlobalVar0 = tk.BooleanVar()
+        self.HEGlobalVar1 = tk.BooleanVar()
+        self.HEGlobalVar2 = tk.BooleanVar()
+        self.HEGlobalCheckBox0 = tk.Checkbutton(dropdownlisFrame, text="Regular HE", var=self.HEGlobalVar0)
+        self.HEGlobalCheckBox1 = tk.Checkbutton(dropdownlisFrame, text="Bit Plane 4,5,6,7", var=self.HEGlobalVar1)
+        self.HEGlobalCheckBox2 = tk.Checkbutton(dropdownlisFrame, text="Bit Plane 0,1,2,3", var=self.HEGlobalVar2)
+        self.HEGlobalCheckBox0.pack()
+        self.HEGlobalCheckBox1.pack()
+        self.HEGlobalCheckBox2.pack()
+
+    def destroyGEGlobalBoxes(self):
+        print("123")
+        self.HEGlobalLabel.destroy()
+        self.HEGlobalCheckBox0.destroy()
+        self.HEGlobalCheckBox1.destroy()
+        self.HEGlobalCheckBox2.destroy()
 
     def createBitPlaneCheckBoxes(self, dropdownlisFrame):
         self.labelBitPlaneBits = tk.Label(dropdownlisFrame, text="Bit Plane Bits")
@@ -94,7 +133,7 @@ class Application(tk.Frame):
         self.BitPlaneBitsCheckBox6.pack()
         self.BitPlaneBitsCheckBox7.pack()
 
-    def destroyFilterAndBit(self, createFilterSizeChecker, createBitPlaneBitsChecker):
+    def destroyFilterAndBit(self, createFilterSizeChecker, createBitPlaneBitsChecker, createGEGlobalChecker):
         if createFilterSizeChecker == 1:
             checker = self.checkIfFilterNeededForAlgorithm()
             if checker is not True:
@@ -104,6 +143,11 @@ class Application(tk.Frame):
             checker = self.checkIfBitPlaneSelected()
             if checker is not True:
                 self.destroyBitPlaneBitsCheckBoxes()
+
+        if createGEGlobalChecker == 1:
+            checker = self.checkIfGEGlobalSelected()
+            if checker is not True:
+                self.destroyGEGlobalBoxes()
 
     def createFilterTxtBox(self, dropdownlisFrame):
         self.labelFilterWidth = tk.Label(dropdownlisFrame, text="Filter Width")
@@ -118,7 +162,7 @@ class Application(tk.Frame):
         self.filterHeight.insert("1.0", "3")
         self.filterHeight.pack()
 
-        self.A = tk.Label(dropdownlisFrame, text="A")
+        self.A = tk.Label(dropdownlisFrame, text="k")
         self.A.pack()
         self.AText = tk.Text(dropdownlisFrame, height=1, width=15)
         self.AText.pack()
@@ -322,8 +366,8 @@ class Application(tk.Frame):
                 x = int(j * xr)
                 y = int(i * yr)
                 diffY = (i * yr) - y
-                a = oldimgarray[y][x];
-                b = oldimgarray[y+1][x];
+                a = oldimgarray[y][x]
+                b = oldimgarray[y+1][x]
                 # newimgarray[i][j] = ((b-a)*i)+(a-i*(b-a))
                 newimgarray[i][j] = int(a * (1 - diffY) + b * diffY)
         # newimg = Image.fromarray(np.asarray(newimgarray))
@@ -372,7 +416,36 @@ class Application(tk.Frame):
         img_new = cs[oldimgarray1D]
         img_new = np.reshape(img_new, oldimgarray.shape)
 
-        return img_new
+        height = img_new.shape[0]
+        width = img_new.shape[1]
+        if self.HEGlobalVar0.get():
+            return img_new
+        elif self.HEGlobalVar1.get():
+            newimgarray = np.zeros((height, width))
+            bitPlaneArray = np.array([0, 0, 0, 0, 1, 1, 1, 1])
+            bitPlaneString = ""
+            for i in range(8):
+                bitPlaneString = str(bitPlaneArray[i]) + bitPlaneString
+            # bitPlaneString = "0b"+bitPlaneString
+            for i in range(height):
+                for j in range(width):
+                    value = img_new[i][j]
+                    if int(value) & int(bitPlaneString):
+                        newimgarray[i][j] = img_new[i][j] & int(bitPlaneString)
+            return newimgarray
+        elif self.HEGlobalVar2.get():
+            newimgarray = np.zeros((height, width))
+            bitPlaneArray = np.array([1, 1, 1, 1, 0, 0, 0, 0])
+            bitPlaneString = ""
+            for i in range(8):
+                bitPlaneString = str(bitPlaneArray[i]) + bitPlaneString
+            # bitPlaneString = "0b"+bitPlaneString
+            for i in range(height):
+                for j in range(width):
+                    value = img_new[i][j]
+                    if int(value) & int(bitPlaneString):
+                        newimgarray[i][j] = img_new[i][j] & int(bitPlaneString)
+            return newimgarray
 
     def get_histogram(self, image, bins):
         # array with size of bins, set to zeros
