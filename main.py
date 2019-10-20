@@ -4,7 +4,7 @@ from PIL import ImageTk, Image, ImageDraw
 import numpy as np
 import math
 import cv2 as cv
-
+import matplotlib.pyplot as plt
 
 class Application(tk.Frame):
     def __init__(self, master=None):
@@ -19,7 +19,8 @@ class Application(tk.Frame):
         # Dictionary with options
         choices = {"None", "NN", "Bi-linear", "Bi-cubic", "Linear-X", "Linear-Y",
                    "Histogram Equalization(Local)", "Histogram Equalization(Global)",
-                   "Smoothing Filter", "Median Filter",
+                   "Smoothing Filter", "Median Filter", "Geometric Mean Filter",
+                   "Harmonic Mean Filter",
                    "Sharpening Laplacian Filter", "High-boosting Filter", "Bit Plane"}
         tkvar.set("None")  # set the default option
 
@@ -124,6 +125,10 @@ class Application(tk.Frame):
         self.BitPlaneBitsCheckBox6 = tk.Checkbutton(dropdownlisFrame, text="Bit Plane 6", var=self.BitCheckBox6Var)
         self.BitPlaneBitsCheckBox7 = tk.Checkbutton(dropdownlisFrame, text="Bit Plane 7", var=self.BitCheckBox7Var)
 
+        self.BitCheckBoxShowHistogramVar = tk.BooleanVar()
+        self.BitCheckBoxShowHistogram = tk.Checkbutton(dropdownlisFrame, text="Show histogram", var=self.BitCheckBoxShowHistogramVar)
+        self.BitCheckBoxShowHistogram.pack()
+
         self.BitPlaneBitsCheckBox0.pack()
         self.BitPlaneBitsCheckBox1.pack()
         self.BitPlaneBitsCheckBox2.pack()
@@ -177,12 +182,14 @@ class Application(tk.Frame):
         self.BitPlaneBitsCheckBox5.destroy()
         self.BitPlaneBitsCheckBox6.destroy()
         self.BitPlaneBitsCheckBox7.destroy()
+        self.BitCheckBoxShowHistogram.destroy()
 
     def checkIfFilterNeededForAlgorithm(self):
         checkerString = self.chosenAlgorithm
         if (checkerString == "Histogram Equalization(Local)" or checkerString == "Smoothing Filter" or
             checkerString == "Median Filter" or checkerString == "Sharpening Laplacian Filter" or
-            checkerString == "High-boosting Filter"):
+            checkerString == "High-boosting Filter" or checkerString == "Geometric Mean Filter" or
+            checkerString == "Harmonic Mean Filter"):
             return True
         else:
             return False
@@ -265,6 +272,12 @@ class Application(tk.Frame):
         elif chosenAlgorithmStr == "Bit Plane":
             method = "Bit Plane"
             newimgarray = np.asarray(self.BitPlane())
+        elif chosenAlgorithmStr == "Geometric Mean Filter":
+            method = "Geometric Mean Filter"
+            newimgarray = np.asarray(self.GeometricMeanFilter())
+        elif chosenAlgorithmStr == "Harmonic Mean Filter":
+            method = "Harmonic Mean Filter"
+            newimgarray = np.asarray(self.HarmonicMeanFilter())
 
         if self.bit.get("1.0", tk.END) == "\n":
             print("bits are not changing")
@@ -536,6 +549,78 @@ class Application(tk.Frame):
 
         return newimg
 
+    def HarmonicMeanFilter(self):
+        image = self.convert_to_array()
+        filtertmp=int(self.filterHeight.get("1.0", tk.END))
+        filter_size = np.array([filtertmp, filtertmp])
+        filtered_image = image
+        num_rows = image.shape[1]
+        num_cols = image.shape[0]
+        newimg = np.asarray(np.zeros((num_cols, num_rows)))
+        # assumes the kernel is simmetric and of odd dimensions
+        edge = int(math.floor(filter_size[0]/2))
+
+        for j in range(0, num_rows):
+            for i in range(0, num_cols):
+                kernel = self.fill_kernel(i, j, filter_size, image)
+                newimg[i, j] = self.getHarmonicMean(kernel.flatten())
+
+        return newimg
+
+    def GeometricMeanFilter(self):
+        image = self.convert_to_array()
+        filtertmp=int(self.filterHeight.get("1.0", tk.END))
+        filter_size = np.array([filtertmp, filtertmp])
+        filtered_image = image
+        num_rows = image.shape[1]
+        num_cols = image.shape[0]
+        newimg = np.asarray(np.zeros((num_cols, num_rows)))
+        # assumes the kernel is simmetric and of odd dimensions
+        edge = int(math.floor(filter_size[0]/2))
+
+        for j in range(0, num_rows):
+            for i in range(0, num_cols):
+                kernel = self.fill_kernel_Product(i, j, filter_size, image)
+                newimg[i, j] = self.getProduct(kernel.flatten())
+        return newimg
+
+    def getProduct(self, vector):
+        product = np.float64(1)
+        lengthVector = int(len(vector))
+        for i in range(0, lengthVector):
+            product *= vector[i]
+
+        product = int(pow(product, (1/lengthVector)))
+        if int(product) > 255:
+            product = 255
+        elif int(product) < 0:
+            product = 0
+
+        return int(product)
+
+    def getHarmonicMean(self, vector):
+        mean = np.float64(0)
+        for i in range(0, len(vector)):
+            mean += (1/vector[i])
+        return int(len(vector) / mean)
+
+    def fill_kernel_Product(self, i, j, kernel_size, image):
+        kernel = np.zeros((kernel_size[0], kernel_size[1]), dtype=int)
+        center = int(kernel_size[0] / 2)
+        h = image.shape[0]
+        w = image.shape[1]
+        pixel = int(0)
+        for y in range(kernel_size[0]):
+            for x in range(kernel_size[0]):
+                deltaY = y - center
+                deltaX = x - center
+                if i + deltaY >= 0 and i + deltaY < h and j + deltaX >= 0 and j + deltaX < w:
+                    pixel = int(image[i + deltaY][j + deltaX])
+                else:
+                    pixel = 1
+                kernel[y][x] = pixel
+        return kernel
+
     def get_mean(self, vector):
         mean = 0
         for i in range(0, len(vector)):
@@ -711,7 +796,6 @@ class Application(tk.Frame):
         bitPlaneArray = np.array(np.zeros(8), dtype=np.int)
 
         if self.BitCheckBox0Var.get():
-            #newimgarray = self.AddBitPlaneToFinalImage(height, width, newimgarray, bitPlane1)
             bitPlaneArray[0] = 1
         if self.BitCheckBox1Var.get():
             bitPlaneArray[1] = 1
@@ -735,7 +819,15 @@ class Application(tk.Frame):
             for j in range(width):
                 value = oldimagearray[i][j]
                 if int(value) & int(bitPlaneString):
-                    newimgarray[i][j] = oldimagearray[i][j] & int(bitPlaneString)
+                    newimgarray[i][j] = oldimagearray[i][j] & int(bitPlaneString, 2)
+
+        if self.BitCheckBoxShowHistogramVar.get():
+            histogram = newimgarray.flatten()
+            b, bins, patches = plt.hist(histogram, 255)
+            plt.xlim([0, 255])
+            plt.show()
+            '''plt.hist(newimgarray.ravel(), 256, [0, 256])
+            plt.show()'''
 
         return newimgarray
 
