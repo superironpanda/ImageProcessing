@@ -20,7 +20,8 @@ class Application(tk.Frame):
         choices = {"None", "NN", "Bi-linear", "Bi-cubic", "Linear-X", "Linear-Y",
                    "Histogram Equalization(Local)", "Histogram Equalization(Global)",
                    "Smoothing Filter", "Median Filter", "Geometric Mean Filter",
-                   "Harmonic Mean Filter",
+                   "Harmonic Mean Filter", "ContraHarmonic Filter", "Max Filter",
+                   "Min Filter", "Midpoint Filter", "Alpha Trimmed Filter",
                    "Sharpening Laplacian Filter", "High-boosting Filter", "Bit Plane"}
         tkvar.set("None")  # set the default option
 
@@ -172,6 +173,18 @@ class Application(tk.Frame):
         self.AText = tk.Text(dropdownlisFrame, height=1, width=15)
         self.AText.pack()
 
+        if(self.chosenAlgorithm == "ContraHarmonic Filter"):
+            self.Q = tk.Label(dropdownlisFrame, text="Q")
+            self.Q.pack()
+            self.QText = tk.Text(dropdownlisFrame, height=1, width=15)
+            self.QText.pack()
+
+        if(self.chosenAlgorithm == "Alpha Trimmed Filter"):
+            self.d = tk.Label(dropdownlisFrame, text="d")
+            self.d.pack()
+            self.dText = tk.Text(dropdownlisFrame, height=1, width=15)
+            self.dText.pack()
+
     def destroyBitPlaneBitsCheckBoxes(self):
         self.labelBitPlaneBits.destroy()
         self.BitPlaneBitsCheckBox0.destroy()
@@ -189,7 +202,7 @@ class Application(tk.Frame):
         if (checkerString == "Histogram Equalization(Local)" or checkerString == "Smoothing Filter" or
             checkerString == "Median Filter" or checkerString == "Sharpening Laplacian Filter" or
             checkerString == "High-boosting Filter" or checkerString == "Geometric Mean Filter" or
-            checkerString == "Harmonic Mean Filter"):
+            checkerString == "Harmonic Mean Filter" or checkerString == "ContraHarmonic Filter"):
             return True
         else:
             return False
@@ -209,6 +222,10 @@ class Application(tk.Frame):
         try:
             self.A.destroy()
             self.AText.destroy()
+            self.Q.destroy()
+            self.QText.destroy()
+            self.d.destroy()
+            self.dText.destroy()
         except:
             a=1
 
@@ -278,6 +295,21 @@ class Application(tk.Frame):
         elif chosenAlgorithmStr == "Harmonic Mean Filter":
             method = "Harmonic Mean Filter"
             newimgarray = np.asarray(self.HarmonicMeanFilter())
+        elif chosenAlgorithmStr == "ContraHarmonic Filter":
+            method = "ContraHarmonic Filter"
+            newimgarray = np.asarray(self.ContraHarmonicFilter())
+        elif chosenAlgorithmStr == "Max Filter":
+            method = "Max Filter"
+            newimgarray = np.asarray(self.MaxFilter())
+        elif chosenAlgorithmStr == "Min Filter":
+            method = "Min Filter"
+            newimgarray = np.asarray(self.MinFilter())
+        elif chosenAlgorithmStr == "Midpoint Filter":
+            method = "Midpoint Filter"
+            newimgarray = np.asarray(self.MidpointFilter())
+        elif chosenAlgorithmStr == "Alpha Trimmed Filter":
+            method = "Alpha Trimmed Filter"
+            newimgarray = np.asarray(self.AlphaTrimmedFilter())
 
         if self.bit.get("1.0", tk.END) == "\n":
             print("bits are not changing")
@@ -549,6 +581,110 @@ class Application(tk.Frame):
 
         return newimg
 
+    def MaxFilter(self):
+        image = self.convert_to_array()
+        filtertmp = int(self.filterHeight.get("1.0", tk.END))
+        filter_size = np.array([filtertmp, filtertmp])
+        filtered_image = image
+        num_rows = image.shape[1]
+        num_cols = image.shape[0]
+        newimg = np.asarray(np.zeros((num_cols, num_rows)))
+        # assumes the kernel is simmetric and of odd dimensions
+        edge = int(math.floor(filter_size[0] / 2))
+
+        for j in range(0, num_rows):
+            for i in range(0, num_cols):
+                kernel = self.fill_kernel(i, j, filter_size, image)
+                newimg[i, j] = self.getMax(kernel.flatten())
+
+        return newimg
+
+    def getMax(self, vector):
+        max = 0
+        for i in range(len(vector)):
+            if(int(vector[i]) > max):
+                max = vector[i]
+        return max
+
+    def MinFilter(self):
+        image = self.convert_to_array()
+        filtertmp = int(self.filterHeight.get("1.0", tk.END))
+        filter_size = np.array([filtertmp, filtertmp])
+        filtered_image = image
+        num_rows = image.shape[1]
+        num_cols = image.shape[0]
+        newimg = np.asarray(np.zeros((num_cols, num_rows)))
+        # assumes the kernel is simmetric and of odd dimensions
+        edge = int(math.floor(filter_size[0] / 2))
+
+        for j in range(0, num_rows):
+            for i in range(0, num_cols):
+                kernel = self.fill_kernel(i, j, filter_size, image)
+                newimg[i, j] = self.getMin(kernel.flatten())
+
+        return newimg
+
+    def getMin(self, vector):
+        min = 0
+        for i in range(len(vector)):
+            if vector[i] < min:
+                min = vector[i]
+
+        return min
+
+    def MidpointFilter(self):
+        image = self.convert_to_array()
+        filtertmp = int(self.filterHeight.get("1.0", tk.END))
+        filter_size = np.array([filtertmp, filtertmp])
+        filtered_image = image
+        num_rows = image.shape[1]
+        num_cols = image.shape[0]
+        newimg = np.asarray(np.zeros((num_cols, num_rows)))
+        # assumes the kernel is simmetric and of odd dimensions
+        edge = int(math.floor(filter_size[0] / 2))
+
+        for j in range(0, num_rows):
+            for i in range(0, num_cols):
+                kernel = self.fill_kernel(i, j, filter_size, image)
+                newimg[i, j] = self.getMidPoint(kernel.flatten())
+
+        return newimg
+
+    def getMidPoint(self, vector):
+        midPoint = 0
+        max = self.getMax(vector)
+        min = self.getMin(vector)
+        midPoint = int((max+min)/2)
+
+        return midPoint
+
+    def AlphaTrimmedFilter(self):
+        image = self.convert_to_array()
+        filtertmp = int(self.filterHeight.get("1.0", tk.END))
+        filter_size = np.array([filtertmp, filtertmp])
+        filtered_image = image
+        num_rows = image.shape[1]
+        num_cols = image.shape[0]
+        newimg = np.asarray(np.zeros((num_cols, num_rows)))
+        # assumes the kernel is simmetric and of odd dimensions
+        edge = int(math.floor(filter_size[0] / 2))
+
+        for j in range(0, num_rows):
+            for i in range(0, num_cols):
+                kernel = self.fill_kernel(i, j, filter_size, image)
+                newimg[i, j] = self.getAlphaTrimmed(kernel.flatten())
+
+        return newimg
+
+    def getAlphaTrimmed(self, vector):
+        sum = 0
+        d = int(self.dText.get("1.0", tk.END))
+        for i in range(len(vector)):
+            sum += vector[i]
+        result = (1/(len(vector))-d) * sum
+
+        return int(result)
+
     def HarmonicMeanFilter(self):
         image = self.convert_to_array()
         filtertmp=int(self.filterHeight.get("1.0", tk.END))
@@ -566,6 +702,41 @@ class Application(tk.Frame):
                 newimg[i, j] = self.getHarmonicMean(kernel.flatten())
 
         return newimg
+
+    def ContraHarmonicFilter(self):
+        image = self.convert_to_array()
+        filtertmp = int(self.filterHeight.get("1.0", tk.END))
+        filter_size = np.array([filtertmp, filtertmp])
+        filtered_image = image
+        num_rows = image.shape[1]
+        num_cols = image.shape[0]
+        newimg = np.asarray(np.zeros((num_cols, num_rows)))
+        # assumes the kernel is simmetric and of odd dimensions
+        edge = int(math.floor(filter_size[0] / 2))
+
+        for j in range(0, num_rows):
+            for i in range(0, num_cols):
+                kernel = self.fill_kernel(i, j, filter_size, image)
+                newimg[i, j] = self.getContraHarmonicMean(kernel.flatten())
+
+        return newimg
+
+    def getContraHarmonicMean(self, vector):
+        Q = self.QText.get("1.0", tk.END)
+        valueQ = float(Q)
+        mean = np.float64(0)
+        top = np.float64(0)
+        bottom = np.float64(0)
+
+        for i in range(0, len(vector)):
+            mean += (pow(vector[i], valueQ+1)/pow(vector[i], valueQ))
+
+        if int(mean)>255:
+            mean = 255
+        elif int(mean) <0:
+            mean=0
+
+        return int(mean)
 
     def GeometricMeanFilter(self):
         image = self.convert_to_array()
