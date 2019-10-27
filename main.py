@@ -68,7 +68,7 @@ class Application(tk.Frame):
                 self.createBitPlaneCheckBoxes(dropdownlisFrame)
             else:
                 self.destroyFilterAndBit(createFilterSizeChecker, createBitPlaneBitsChecker, createGEGlobalChecker)
-            print(createGEGlobalChecker)
+
             if self.checkIfGEGlobalSelected() and createGEGlobalChecker == 0:
                 self.createGEGlobalBoxes(dropdownlisFrame)
             else:
@@ -168,10 +168,11 @@ class Application(tk.Frame):
         self.filterHeight.insert("1.0", "3")
         self.filterHeight.pack()
 
-        self.A = tk.Label(dropdownlisFrame, text="k")
-        self.A.pack()
-        self.AText = tk.Text(dropdownlisFrame, height=1, width=15)
-        self.AText.pack()
+        if(self.chosenAlgorithm == "High-boosting Filter"):
+            self.A = tk.Label(dropdownlisFrame, text="k")
+            self.A.pack()
+            self.AText = tk.Text(dropdownlisFrame, height=1, width=15)
+            self.AText.pack()
 
         if(self.chosenAlgorithm == "ContraHarmonic Filter"):
             self.Q = tk.Label(dropdownlisFrame, text="Q")
@@ -202,7 +203,9 @@ class Application(tk.Frame):
         if (checkerString == "Histogram Equalization(Local)" or checkerString == "Smoothing Filter" or
             checkerString == "Median Filter" or checkerString == "Sharpening Laplacian Filter" or
             checkerString == "High-boosting Filter" or checkerString == "Geometric Mean Filter" or
-            checkerString == "Harmonic Mean Filter" or checkerString == "ContraHarmonic Filter"):
+            checkerString == "Harmonic Mean Filter" or checkerString == "ContraHarmonic Filter" or
+            checkerString == "Max Filter" or checkerString == "Min Filter" or checkerString == "Midpoint Filter"
+            or checkerString == "Alpha Trimmed Filter"):
             return True
         else:
             return False
@@ -679,9 +682,9 @@ class Application(tk.Frame):
     def getAlphaTrimmed(self, vector):
         sum = 0
         d = int(self.dText.get("1.0", tk.END))
-        for i in range(len(vector)):
+        for i in range(int(d/2), int(len(vector)-d/2)):
             sum += vector[i]
-        result = (1/(len(vector))-d) * sum
+        result = (1/(len(vector))) * sum
 
         return int(result)
 
@@ -728,8 +731,11 @@ class Application(tk.Frame):
         top = np.float64(0)
         bottom = np.float64(0)
 
-        for i in range(0, len(vector)):
+        for i in range(len(vector)):
             mean += (pow(vector[i], valueQ+1)/pow(vector[i], valueQ))
+
+        if math.isnan(mean):
+            mean = 0
 
         if int(mean)>255:
             mean = 255
@@ -751,7 +757,7 @@ class Application(tk.Frame):
 
         for j in range(0, num_rows):
             for i in range(0, num_cols):
-                kernel = self.fill_kernel_Product(i, j, filter_size, image)
+                kernel = self.fill_kernel(i, j, filter_size, image)
                 newimg[i, j] = self.getProduct(kernel.flatten())
         return newimg
 
@@ -788,7 +794,7 @@ class Application(tk.Frame):
                 if i + deltaY >= 0 and i + deltaY < h and j + deltaX >= 0 and j + deltaX < w:
                     pixel = int(image[i + deltaY][j + deltaX])
                 else:
-                    pixel = 1
+                    pixel = int(image[i][j])
                 kernel[y][x] = pixel
         return kernel
 
@@ -811,7 +817,7 @@ class Application(tk.Frame):
                 if i + deltaY >= 0 and i + deltaY < h and j + deltaX >= 0 and j + deltaX < w:
                     pixel = int(image[i + deltaY][j + deltaX])
                 else:
-                    pixel = 0
+                    pixel = int(image[i][j])
                 kernel[y][x] = pixel
         return kernel
 
@@ -898,32 +904,6 @@ class Application(tk.Frame):
         return mask
 
     def HighBoostingFilter(self):
-        '''img = self.convert_to_array()
-        filtertmp = int(self.filterHeight.get("1.0", tk.END))
-        filter_size = np.array([filtertmp, filtertmp])
-
-        num_rows = img.shape[1]
-        num_cols = img.shape[0]
-        newimg = np.asarray(np.zeros((num_cols, num_rows)))
-        imgMask = np.asarray(np.zeros((num_cols, num_rows)))
-        # imgwithpadding = self.addpadding(image, filtertmp)
-        mask = self.createHightBoostingFilter(filtertmp)
-        counter = 0
-        A = int(self.AText.get("1.0", tk.END))
-        for j in range(0, num_rows):
-            for i in range(0, num_cols):
-                kernel = self.fill_kernel(i, j, filter_size, img)
-                imgMask[i, j] = self.findLaplacianCenterValue(mask, kernel, filtertmp, A)
-        for j in range(0, num_rows):
-            for i in range(0, num_cols):
-                value = int(imgMask[i][j]) + int(img[i][j])
-                if value > 255:
-                    value = 255
-                elif value < 0:
-                    value = 0
-                newimg[i][j] = value
-
-        return newimg'''
         blurredImg = self.SmoothingFilter()
         originalImg = self.convert_to_array()
         newheight = int(originalImg.shape[0])
