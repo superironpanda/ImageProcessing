@@ -168,23 +168,20 @@ class Application(tk.Frame):
         self.filterHeight.insert("1.0", "3")
         self.filterHeight.pack()
 
-        if(self.chosenAlgorithm == "High-boosting Filter"):
-            self.A = tk.Label(dropdownlisFrame, text="k")
-            self.A.pack()
-            self.AText = tk.Text(dropdownlisFrame, height=1, width=15)
-            self.AText.pack()
+        self.A = tk.Label(dropdownlisFrame, text="k (High-boosting Filter)")
+        self.A.pack()
+        self.AText = tk.Text(dropdownlisFrame, height=1, width=15)
+        self.AText.pack()
 
-        if(self.chosenAlgorithm == "ContraHarmonic Filter"):
-            self.Q = tk.Label(dropdownlisFrame, text="Q")
-            self.Q.pack()
-            self.QText = tk.Text(dropdownlisFrame, height=1, width=15)
-            self.QText.pack()
+        self.Q = tk.Label(dropdownlisFrame, text="Q (ContraHarmonic Filter)")
+        self.Q.pack()
+        self.QText = tk.Text(dropdownlisFrame, height=1, width=15)
+        self.QText.pack()
 
-        if(self.chosenAlgorithm == "Alpha Trimmed Filter"):
-            self.d = tk.Label(dropdownlisFrame, text="d")
-            self.d.pack()
-            self.dText = tk.Text(dropdownlisFrame, height=1, width=15)
-            self.dText.pack()
+        self.d = tk.Label(dropdownlisFrame, text="d (Alpha Trimmed Filter)")
+        self.d.pack()
+        self.dText = tk.Text(dropdownlisFrame, height=1, width=15)
+        self.dText.pack()
 
     def destroyBitPlaneBitsCheckBoxes(self):
         self.labelBitPlaneBits.destroy()
@@ -222,15 +219,13 @@ class Application(tk.Frame):
         self.filterWidth.destroy()
         self.labelFilterHeight.destroy()
         self.filterHeight.destroy()
-        try:
-            self.A.destroy()
-            self.AText.destroy()
-            self.Q.destroy()
-            self.QText.destroy()
-            self.d.destroy()
-            self.dText.destroy()
-        except:
-            a=1
+
+        self.A.destroy()
+        self.AText.destroy()
+        self.Q.destroy()
+        self.QText.destroy()
+        self.d.destroy()
+        self.dText.destroy()
 
     def create_text_box(self):
         labelWidth = tk.Label(self, text="Width \n(Empty would be original size)")
