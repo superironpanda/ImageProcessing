@@ -628,12 +628,7 @@ class Application(tk.Frame):
         return newimg
 
     def getMin(self, vector):
-        min = 0
-        for i in range(len(vector)):
-            if vector[i] < min:
-                min = vector[i]
-
-        return min
+        return int(min(vector))
 
     def MidpointFilter(self):
         image = self.convert_to_array()
