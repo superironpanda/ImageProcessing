@@ -676,10 +676,11 @@ class Application(tk.Frame):
 
     def getAlphaTrimmed(self, vector):
         sum = 0
+        vector = np.sort(vector)
         d = int(self.dText.get("1.0", tk.END))
         for i in range(int(d/2), int(len(vector)-d/2)):
             sum += vector[i]
-        result = (1/(len(vector))) * sum
+        result = (1/(len(vector)-d)) * sum
 
         return int(result)
 
@@ -723,21 +724,21 @@ class Application(tk.Frame):
         Q = self.QText.get("1.0", tk.END)
         valueQ = float(Q)
         mean = np.float64(0)
-        top = np.float64(0)
-        bottom = np.float64(0)
+        mean2 = np.float64(0)
 
         for i in range(len(vector)):
-            mean += (pow(vector[i], valueQ+1)/pow(vector[i], valueQ))
+            mean += float(pow(vector[i], valueQ))
+            mean2 += float(pow(vector[i], valueQ+1))
 
         if math.isnan(mean):
             mean = 0
 
-        if int(mean)>255:
-            mean = 255
-        elif int(mean) <0:
-            mean=0
-
-        return int(mean)
+        result = float(0)
+        if math.isnan(mean2/mean):
+            result = 0
+        else:
+            result = int(mean2/mean)
+        return int(result)
 
     def GeometricMeanFilter(self):
         image = self.convert_to_array()
