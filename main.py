@@ -5,6 +5,7 @@ import numpy as np
 import math
 import cv2 as cv
 import matplotlib.pyplot as plt
+import heapq
 
 class Application(tk.Frame):
     def __init__(self, master=None):
@@ -246,6 +247,8 @@ class Application(tk.Frame):
     def create_submit_button(self):
         self.submitButton = tk.Button(self, text="Generate", command=self.submitButtonAction)
         self.submitButton.grid(column=0, row=25, padx=10, pady=10)
+        self.RLEButton = tk.Button(self, text="Run Length Encoding", command=self.RLEButtonAction)
+        self.RLEButton.grid(column=0, row=30, padx=10, pady=10)
 
     def submitButtonAction(self):
         chosenAlgorithmStr = self.chosenAlgorithm
@@ -973,6 +976,52 @@ class Application(tk.Frame):
 
         return newimgarray
 
+    def RLEButtonAction(self):
+        '''oldimagearray = self.convert_to_array()
+        oldArrayFlattened = oldimagearray.flatten()
+        newArrayStr = []
+        f=0
+        s=0
+        while f < len(oldArrayFlattened):
+            count = 0
+            while(f < len(oldArrayFlattened) and oldArrayFlattened[f] == oldArrayFlattened[s]):
+                count+=1
+                f+=1
+            tmp = []
+            newArrayStr.append(count)
+            newArrayStr.append(oldArrayFlattened[s])
+            s = f
+        newImgArray = np.asarray(newArrayStr)
+        output = newImgArray.astype(np.uint8)'''
+        self.RLEBitPlane()
+
+    def RLEBitPlane(self):
+        oldimagearray = self.convert_to_array()
+        oldArrayFlattened = oldimagearray.flatten()
+        result = []
+        for i in range(8):
+            encodedArray = []
+            s = 0
+            f = 0
+            encodedArray.append(oldArrayFlattened[0]>>i & 1)
+            while f<len(oldArrayFlattened):
+                count = 0
+                while f < len(oldArrayFlattened) and oldArrayFlattened[f] >> i & 1 == oldArrayFlattened[s]>>i&1:
+                    count+=1
+                    f+=1
+                encodedArray.append(count)
+                s = f
+            result.append(encodedArray)
+
+        print(len(result))
+        print(len(result[1]))
+        output = np.array(result)
+        np.savetxt("RLEBit.txt", output)
+        print(output.dtype)
+        #output = resultNp.astype
+
+
+
     def AddBitPlaneToFinalImage(self, height, width, newimgarray, bitplaneimg):
         for i in range(height):
             for j in range(width):
@@ -1012,6 +1061,8 @@ class Application(tk.Frame):
         img = Image.open(self.filename).convert('L')
         newimgarray = np.array(img)
         return newimgarray
+
+    def huffmanEncoding(self):
 
 
 root = tk.Tk()
