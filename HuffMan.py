@@ -1,95 +1,108 @@
+from PIL import Image
 import heapq
 
-
-class Node:
-    def __init__(self, prob, symbol=None):
-        """Create node for given symbol and probability."""
+class HeapNode:
+    def __init__(self, rgb, freq):
+        self.rgb = rgb
+        self.freq = freq
         self.left = None
         self.right = None
-        self.symbol = symbol
-        self.prob = prob
 
-    # Need comparator method at a minimum to work with heapq
     def __lt__(self, other):
-        return self.prob < other.prob
+        return self.freq < other.freq
 
-    def encode(self, encoding):
-        """Return bit encoding in traversal."""
-        if self.left is None and self.right is None:
-            yield (self.symbol, encoding)
-        else:
-            for v in self.left.encode(encoding + '0'):
-                yield v
-            for v in self.right.encode(encoding + '1'):
-                yield v
+    def __eq__(self, other):
+        if other == None:
+            return False
+        if (not isinstance(other, HeapNode)):
+            return False
+        return self.freq == other.freq
 
 
-class Huffman:
-    def __init__(self, initial):
-        """Construct encoding given initial corpus."""
-        self.initial = initial
+class Picture:
+    def __init__(self, name):
+        self.name = name[:-4]
+        self.dict = {}
+        self.data = []
+        self.heap = []
+        self.encode = {}
+        self.decode = {}
+        self.res_image = []
+        self.recieve = []
 
-        # Count frequencies
-        freq = {}
-        for _ in initial:
-            if _ in freq:
-                freq[_] += 1
+        self.img = Image.open(name)
+        self.width, self.height = self.img.size
+        self.px = self.img.load()
+
+    def load_data(self):
+        for row in range(self.width):
+            for col in range(self.height):
+                self.data.append(self.px[row, col])
+        for item in self.data:
+            if item not in self.dict:
+                self.dict[item] = 1
             else:
-                freq[_] = 1
+                self.dict[item] += 1
 
-        # Construct priority queue
-        pq = []
-        for symbol in freq:
-            pq.append(Node(freq[symbol], symbol))
-        heapq.heapify(pq)
+    def display(self, img_object):
+        img_object.show()
 
-        # special case: what if only one symbol?
-        if len(pq) == 1:
-            self.root = Node(1)
-            self.root.left = pq[0]
-            self.encoding = {symbol: '0'}
-            return
+    def get_data(self):
+        return self.data
 
-        # Huffman Encoding Algorithm
-        while len(pq) > 1:
-            n1 = heapq.heappop(pq)
-            n2 = heapq.heappop(pq)
-            n3 = Node(n1.prob + n2.prob)
-            n3.left = n1
-            n3.right = n2
-            heapq.heappush(pq, n3)
+    def get_dict(self):
+        return self.dict
 
-        # Record
-        self.root = pq[0]
-        self.encoding = {}
-        for sym, code in pq[0].encode(''):
-            self.encoding[sym] = code
+    def make_heap(self):
+        for key in self.dict:
+            if self.dict[key] > 0:
+                node = HeapNode(key, self.dict[key])
+                heapq.heappush(self.heap, node)
 
-    def __repr__(self):
-        """Show encoding"""
-        return 'huffman:' + str(self.encoding)
+    def merge_nodes(self):
+        while (len(self.heap) > 1):
+            node_one = heapq.heappop(self.heap)
+            node_two = heapq.heappop(self.heap)
 
-    def encode(self, s):
-        """Return bit string for encoding."""
-        bits = ''
-        for _ in s:
-            if not _ in self.encoding:
-                raise ValueError("'" + _ + "' is not encoded character")
-            bits += self.encoding[_]
-        return bits
+            merge = HeapNode(None, node_one.freq + node_two.freq)
+            merge.left = node_one
+            merge.right = node_two
 
-    def decode(self, bits):
-        """Decode ASCII bit string for simplicity."""
-        node = self.root
-        s = ''
-        for _ in bits:
-            if _ == '0':
-                node = node.left
-            else:
-                node = node.right
+            heapq.heappush(self.heap, merge)
 
-            if node.symbol:
-                s += node.symbol
-                node = self.root
+    def heaporder(self, root, buffer):
+        if root:
+            self.res_image.append([root.rgb, root.freq, buffer])
+            buffer += "0"
+            self.heaporder(root.left, buffer)
+            buffer = buffer[:-1]
+            buffer += "1"
+            self.heaporder(root.right, buffer)
 
-        return s
+    def create_compression_keys(self):
+        for item in self.res_image:
+            if item[0]:
+                self.encode[item[0]] = item[2]
+                self.decode[item[2]] = item[0]
+
+    def writeout(self):
+        output = []
+        with open(self.name + "_out.txt", 'w') as out:
+            for pix in self.data:
+                out.write(self.encode[pix] + "\n")
+                output.append(self.encode[pix])
+        return output
+
+    def readin(self):
+        with open(self.name + "_out.txt", 'r') as ins:
+            self.recieve = ins.read().splitlines()
+
+    def create_new_image(self):
+        decompressed = Image.new('L', (self.width, self.height))
+        pixels = decompressed.load()
+        index = 0
+        for row in range(self.width):
+            for col in range(self.height):
+                pixels[row, col] = self.decode[self.recieve[index]]
+                index += 1
+        return decompressed

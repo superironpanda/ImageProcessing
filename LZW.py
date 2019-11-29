@@ -25,39 +25,16 @@ def compress(uncompressed):
     # Output the code for w.
     if w:
         result.append(dictionary[w])
-    return result
+    return result, dictionary
 
 
-def decompress(compressed):
-    """Decompress a list of output ks to a string."""
-    # Build the dictionary.
-    dict_size = 256
-    dictionary = dict((i, chr(i)) for i in range(dict_size))
-    # in Python 3: dictionary = {i: chr(i) for i in range(dict_size)}
-
-    # use StringIO, otherwise this becomes O(N^2)
-    # due to string concatenation in a loop
-    result = StringIO()
-    w = chr(compressed.pop(0))
-    result.write(w)
+def decompress(compressed, dictionary):
+    output = ""
     for k in compressed:
-        if k in dictionary:
-            entry = dictionary[k]
-        elif k == dict_size:
-            entry = w + w[0]
-        else:
-            raise ValueError('Bad compressed k: %s' % k)
-        result.write(entry)
+        output = output + get_key(k, dictionary)
+    return output
 
-        # Add w+entry[0] to the dictionary.
-        dictionary[dict_size] = w + entry[0]
-        dict_size += 1
-
-        w = entry
-    return result.getvalue()
-'''
-compressed = compress('TOBEORNOTTOBEORTOBEORNOT')
-print(compressed)
-decompressed = decompress(compressed)
-print(decompressed)
-'''
+def get_key(val, dictionary):
+    for key, value in dictionary.items():
+        if val == value:
+            return key
