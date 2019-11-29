@@ -89,11 +89,13 @@ class Application(tk.Frame):
         print("Run Length Encoding Size in Bit Plane: ")
         print(sys.getsizeof(self.RLEBitPlaneEncode))
         print("Original Array size: ")
-        print(sys.getsizeof(oldArrayFlattened))
+        print(sys.getsizeof(list(inputString)))
 
 
     def RLEBitPlaneDecodeButtonAction(self):
-        print("in progress")
+        decoded = RLEBitPlane.decode(self.RLEBitPlaneEncode)
+        print("RLE in Bit Plane Decoded:")
+        print(decoded)
 
     def RLEButtonAction(self):
         inputString = self.inputString.get("1.0", tk.END)
