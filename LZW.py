@@ -1,3 +1,6 @@
+from io import StringIO
+
+
 def compress(uncompressed):
     """Compress a string to a list of output symbols."""
 
@@ -27,8 +30,6 @@ def compress(uncompressed):
 
 def decompress(compressed):
     """Decompress a list of output ks to a string."""
-    from io import StringIO
-
     # Build the dictionary.
     dict_size = 256
     dictionary = dict((i, chr(i)) for i in range(dict_size))
@@ -54,10 +55,9 @@ def decompress(compressed):
 
         w = entry
     return result.getvalue()
-
-
-# How to use:
+'''
 compressed = compress('TOBEORNOTTOBEORTOBEORNOT')
 print(compressed)
 decompressed = decompress(compressed)
 print(decompressed)
+'''

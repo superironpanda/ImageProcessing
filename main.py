@@ -1,3 +1,4 @@
+import sys
 import tkinter as tk
 from tkinter import filedialog, ttk
 from PIL import ImageTk, Image, ImageDraw
@@ -6,6 +7,7 @@ import math
 import cv2 as cv
 import matplotlib.pyplot as plt
 import heapq
+import RLE
 
 class Application(tk.Frame):
     def __init__(self, master=None):
@@ -977,23 +979,16 @@ class Application(tk.Frame):
         return newimgarray
 
     def RLEButtonAction(self):
-        '''oldimagearray = self.convert_to_array()
+        oldimagearray = self.convert_to_array()
         oldArrayFlattened = oldimagearray.flatten()
-        newArrayStr = []
-        f=0
-        s=0
-        while f < len(oldArrayFlattened):
-            count = 0
-            while(f < len(oldArrayFlattened) and oldArrayFlattened[f] == oldArrayFlattened[s]):
-                count+=1
-                f+=1
-            tmp = []
-            newArrayStr.append(count)
-            newArrayStr.append(oldArrayFlattened[s])
-            s = f
-        newImgArray = np.asarray(newArrayStr)
-        output = newImgArray.astype(np.uint8)'''
-        self.RLEBitPlane()
+        self.RLEoutput = RLE.encode(oldArrayFlattened)
+
+        print("Run Length Encoding 1D array: ")
+        print(self.RLEoutput)
+        print("Run Length Encoding 1D array Size: " )
+        print(sys.getsizeof(self.RLEoutput))
+        print("Original Image 1D array size: ")
+        print(sys.getsizeof(oldimagearray))
 
     def RLEBitPlane(self):
         oldimagearray = self.convert_to_array()
@@ -1061,8 +1056,6 @@ class Application(tk.Frame):
         img = Image.open(self.filename).convert('L')
         newimgarray = np.array(img)
         return newimgarray
-
-    def huffmanEncoding(self):
 
 
 root = tk.Tk()
